@@ -11,14 +11,17 @@ import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.doan_adr.smart_order_app.Models.CartItem
 import com.doan_adr.smart_order_app.Models.Dish
 import com.doan_adr.smart_order_app.Models.Topping
+import com.doan_adr.smart_order_app.Models.ToppingSelection
 import com.doan_adr.smart_order_app.R
 import com.doan_adr.smart_order_app.adapters.ToppingAdapter
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
 import com.google.firebase.firestore.ListenerRegistration
 import java.text.NumberFormat
 import java.util.Locale
+import java.util.UUID
 
 class DishDetailDialogFragment : DialogFragment() {
 
@@ -39,6 +42,7 @@ class DishDetailDialogFragment : DialogFragment() {
     private lateinit var toppingsLabel: TextView
     private lateinit var toppingsProgressBar: ProgressBar
     private lateinit var loadingText: TextView
+    private lateinit var dishNoteEditText: EditText
 
     // Data
     private var currentDish: Dish? = null
@@ -52,9 +56,14 @@ class DishDetailDialogFragment : DialogFragment() {
     // Adapter
     private lateinit var toppingAdapter: ToppingAdapter
 
+    // Interface
+    interface OnCartItemAddedListener {
+        fun onCartItemAdded(cartItem: CartItem)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.CustomDialog)
+        setStyle(STYLE_NORMAL, R.style.OverlayDialogStyle)
     }
 
     override fun onCreateView(
@@ -81,6 +90,7 @@ class DishDetailDialogFragment : DialogFragment() {
         toppingsLabel = view.findViewById(R.id.toppings_label)
         toppingsProgressBar = view.findViewById(R.id.toppings_progress_bar)
         loadingText = view.findViewById(R.id.loading_text)
+        dishNoteEditText = view.findViewById(R.id.notes_to_chef)
 
         // Adapter với callback
         toppingAdapter = ToppingAdapter(emptyList()) { topping, isChecked ->
@@ -111,7 +121,6 @@ class DishDetailDialogFragment : DialogFragment() {
             if (dish.originalPrice > dish.discountedPrice) {
                 dishOriginalPrice.apply {
                     text = formatPrice(dish.originalPrice)
-                    // Dòng code mới để gạch ngang giá gốc
                     paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
                     visibility = View.VISIBLE
                 }
@@ -145,6 +154,46 @@ class DishDetailDialogFragment : DialogFragment() {
         closeButton.setOnClickListener { dismiss() }
         decrementButton.setOnClickListener { changeQuantity(-1) }
         incrementButton.setOnClickListener { changeQuantity(1) }
+
+        // Logic thêm món vào giỏ hàng đã được hoàn thiện
+        addToCartButton.setOnClickListener {
+            // Kiểm tra nếu món ăn không null và số lượng lớn hơn 0
+            currentDish?.let { dish ->
+                if (currentQuantity > 0) {
+                    // Tạo một Map<String, ToppingSelection> từ selectedToppings
+                    val selectedToppingsMap = selectedToppings.associate {
+                        it.id to ToppingSelection(it.name, 1, it.price)
+                    }
+
+                    // Tính toán tổng giá
+                    val basePrice = dish.discountedPrice
+                    val toppingsPrice = selectedToppingsMap.values.sumOf { it.price * it.quantity }
+                    val totalPrice = (basePrice + toppingsPrice) * currentQuantity
+                    val note = dishNoteEditText.text.toString().trim()
+
+                    // Tạo đối tượng CartItem
+                    val newCartItem = CartItem(
+                        id = UUID.randomUUID().toString(),
+                        dishId = dish.id,
+                        dishName = dish.name,
+                        quantity = currentQuantity,
+                        note = note, // Bạn có thể thêm ghi chú tại đây
+                        toppings = selectedToppingsMap,
+                        unitPrice = basePrice,
+                        totalPrice = totalPrice
+                    )
+
+                    // Truyền đối tượng CartItem về Activity thông qua callback
+                    (activity as? OnCartItemAddedListener)?.onCartItemAdded(newCartItem)
+
+                    // Hiển thị thông báo và đóng dialog
+                    Toast.makeText(context, "Đã thêm món ${dish.name} vào giỏ.", Toast.LENGTH_SHORT).show()
+                    dismiss()
+                } else {
+                    Toast.makeText(context, "Số lượng phải lớn hơn 0.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {

@@ -1,21 +1,26 @@
 package com.doan_adr.smart_order_app.Models
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
 data class CartItem(
     val id: String = "",
     val dishId: String = "",
     val dishName: String = "",
-    val quantity: Int = 1,
+    var quantity: Int = 1,
     val note: String = "",
     val toppings: Map<String, ToppingSelection> = emptyMap(),
     val unitPrice: Double = 0.0,
-    val totalPrice: Double = 0.0
-)
+    var totalPrice: Double = 0.0
+) : Parcelable
 
+@Parcelize
 data class ToppingSelection(
     val name: String = "",
     val quantity: Int = 1,
     val price: Double = 0.0
-)
+) : Parcelable
 
 fun CartItem.toMap(): Map<String, Any> {
     return hashMapOf(
