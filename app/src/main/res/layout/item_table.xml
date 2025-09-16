@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cardView"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp"
+    android:backgroundTint="@color/white">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <ImageView
+            android:id="@+id/status_icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/dine_lamp_24px"
+            app:tint="@color/gray" />
+
+        <TextView
+            android:id="@+id/table_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Bàn 1"
+            android:textStyle="bold"
+            android:textSize="20sp"
+            android:textColor="@color/dark"
+            app:layout_constraintStart_toEndOf="@id/status_icon"
+            app:layout_constraintTop_toTopOf="@id/status_icon"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/order_id_text"
+            tools:text="Bàn 12A" />
+
+        <TextView
+            android:id="@+id/order_id_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="4dp"
+            android:text="Trống"
+            android:textSize="14sp"
+            android:textColor="@color/gray"
+            app:layout_constraintStart_toEndOf="@id/status_icon"
+            app:layout_constraintTop_toBottomOf="@id/table_name"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="Đơn: ABC123DEF" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

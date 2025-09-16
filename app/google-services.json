@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1039602321909",
+    "project_id": "adr-doan-smart-order-app",
+    "storage_bucket": "adr-doan-smart-order-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039602321909:android:e176be3362fb2b771cb8bc",
+        "android_client_info": {
+          "package_name": "com.doan_adr.smart_order_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqg-V3s0TEKsYd1Xh507XKENxikakA-lY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
