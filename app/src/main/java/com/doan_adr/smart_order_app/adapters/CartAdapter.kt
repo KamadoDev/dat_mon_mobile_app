@@ -4,8 +4,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.doan_adr.smart_order_app.Models.CartItem
 import com.doan_adr.smart_order_app.R
 import java.text.NumberFormat
@@ -23,6 +25,7 @@ class CartAdapter(
 
     class CartItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val dishName: TextView = itemView.findViewById(R.id.cart_item_name)
+        val imageView : ImageView = itemView.findViewById(R.id.cart_item_image)
         val toppings: TextView = itemView.findViewById(R.id.cart_item_toppings)
         val note: TextView = itemView.findViewById(R.id.cart_item_note)
         val quantityText: TextView = itemView.findViewById(R.id.quantity_text)
@@ -40,10 +43,12 @@ class CartAdapter(
     override fun onBindViewHolder(holder: CartItemViewHolder, position: Int) {
         val cartItem = cartItems[position]
 
+        // Set item details
         holder.dishName.text = cartItem.dishName
         holder.quantityText.text = cartItem.quantity.toString()
         holder.totalPrice.text = formatPrice(cartItem.totalPrice)
 
+        // Hiển thị toppings nếu có
         if (cartItem.toppings.isNotEmpty()) {
             val toppingNames = cartItem.toppings.values.joinToString(", ") { it.name }
             holder.toppings.text = "Thêm: $toppingNames"
@@ -52,6 +57,7 @@ class CartAdapter(
             holder.toppings.visibility = View.GONE
         }
 
+        // Hiển thị ghi chú nếu có
         if (cartItem.note.isNotBlank()) {
             holder.note.text = "Ghi chú: ${cartItem.note}"
             holder.note.visibility = View.VISIBLE
@@ -59,16 +65,29 @@ class CartAdapter(
             holder.note.visibility = View.GONE
         }
 
+        // Tải hình ảnh món ăn bằng Glide
+        Glide.with(holder.itemView.context)
+            .load(cartItem.imageUrl)
+            .placeholder(R.drawable.ic_launcher_background)
+            .error(R.drawable.ic_launcher_background)
+            .into(holder.imageView)
+
+        // Xử lý sự kiện click cho nút tăng số lượng
         holder.incrementButton.setOnClickListener {
             listener.onQuantityChanged(cartItem, cartItem.quantity + 1)
         }
 
+        // Xử lý sự kiện click cho nút giảm số lượng
         holder.decrementButton.setOnClickListener {
             if (cartItem.quantity > 1) {
                 listener.onQuantityChanged(cartItem, cartItem.quantity - 1)
+            } else {
+                // Nếu số lượng là 1 và giảm tiếp, xóa món ăn
+                listener.onItemRemoved(cartItem)
             }
         }
 
+        // Xử lý sự kiện click cho nút xóa món
         holder.removeButton.setOnClickListener {
             listener.onItemRemoved(cartItem)
         }

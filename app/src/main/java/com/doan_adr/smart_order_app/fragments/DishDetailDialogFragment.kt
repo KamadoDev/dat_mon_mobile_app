@@ -178,6 +178,7 @@ class DishDetailDialogFragment : DialogFragment() {
                         dishName = dish.name,
                         quantity = currentQuantity,
                         note = note, // Bạn có thể thêm ghi chú tại đây
+                        imageUrl = dish.imageUrl,
                         toppings = selectedToppingsMap,
                         unitPrice = basePrice,
                         totalPrice = totalPrice

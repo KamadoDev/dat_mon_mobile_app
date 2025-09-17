@@ -113,32 +113,6 @@
             android:layout_marginVertical="16dp"
             android:background="@color/divider_color" />
 
-        <!-- Phí VAT -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="VAT"
-                android:textColor="@color/black"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/tv_vat_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/roboto_bold"
-                android:textColor="@color/black"
-                android:textSize="16sp"
-                tools:text="15.000 đ" />
-        </LinearLayout>
-
         <!-- GIẢM GIÁ -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -156,7 +130,7 @@
                 android:textSize="16sp" />
 
             <TextView
-                android:id="@+id/tv_discount"
+                android:id="@+id/discount_value_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/roboto_bold"

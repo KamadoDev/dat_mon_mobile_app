@@ -276,6 +276,21 @@ class FirebaseDatabaseManager {
         )
     }
 
+    // Thêm hàm này vào class FirebaseDatabaseManager
+    suspend fun getDiscountByCode(code: String): Discount? {
+        return try {
+            val snapshot = db.collection("discounts")
+                .whereEqualTo("code", code)
+                .limit(1)
+                .get()
+                .await()
+            snapshot.documents.firstOrNull()?.toObject(Discount::class.java)
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi lấy mã giảm giá: ${e.message}")
+            null
+        }
+    }
+
     private fun createMockCategories(): List<Map<String, Any?>> {
         return listOf(
             Category(name = "Món chính", imageUrl = "https://example.com/main_icon.png").toMap(),
@@ -315,4 +330,15 @@ class FirebaseDatabaseManager {
                 }
             }
     }
+
+    suspend fun createOrder(order: Order) {
+        // Lưu đơn hàng vào collection "orders"
+        db.collection("orders").document(order.id).set(order.toMap()).await()
+        Log.d("FirebaseDatabaseManager", "Đơn hàng ${order.id} đã được tạo thành công.")
+
+        // Đánh dấu bàn đã được đặt hàng là "busy"
+        db.collection("tables").document(order.tableId).update("status", "busy").await()
+        Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái bàn ${order.tableId} thành 'busy'.")
+    }
+
 }

@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -15,13 +17,17 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import java.util.ArrayList
 import java.io.Serializable
+import java.text.NumberFormat
+import java.util.ArrayList
+import java.util.Locale
 
 class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
 
     private lateinit var cartRecyclerView: RecyclerView
     private lateinit var emptyCartText: TextView
+    private lateinit var totalPriceText: TextView
+    private lateinit var checkoutButton: Button
     private var cartItems: ArrayList<CartItem> = ArrayList()
     private var listener: OnCartItemsUpdatedListener? = null
 
@@ -42,6 +48,8 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         val view = inflater.inflate(R.layout.dialog_cart, container, false)
         cartRecyclerView = view.findViewById(R.id.cart_recycler_view)
         emptyCartText = view.findViewById(R.id.empty_cart_text)
+        totalPriceText = view.findViewById(R.id.total_price_text)
+        checkoutButton = view.findViewById(R.id.checkout_button)
 
         val window = dialog?.window ?: return view
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -53,12 +61,9 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         val toolbar: Toolbar = view.findViewById(R.id.cart_toolbar)
         toolbar.setNavigationOnClickListener { dismiss() }
 
-        if (cartItems.isEmpty()) {
-            emptyCartText.visibility = View.VISIBLE
-            cartRecyclerView.visibility = View.GONE
-        } else {
-            emptyCartText.visibility = View.GONE
-            cartRecyclerView.visibility = View.VISIBLE
+        updateCartState()
+        checkoutButton.setOnClickListener {
+            Toast.makeText(requireContext(), "Chức năng đặt hàng chưa được triển khai.", Toast.LENGTH_SHORT).show()
         }
 
         cartRecyclerView.layoutManager = LinearLayoutManager(context)
@@ -74,6 +79,7 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
             item.totalPrice = item.unitPrice * newQuantity
             (cartRecyclerView.adapter as? CartAdapter)?.updateItems(cartItems)
             listener?.onCartItemsUpdated(cartItems)
+            updateCartState()
         }
     }
 
@@ -81,6 +87,28 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         cartItems.removeIf { it.id == cartItem.id }
         (cartRecyclerView.adapter as? CartAdapter)?.updateItems(cartItems)
         listener?.onCartItemsUpdated(cartItems)
+        updateCartState()
+    }
+
+    private fun updateCartState() {
+        if (cartItems.isEmpty()) {
+            emptyCartText.visibility = View.VISIBLE
+            cartRecyclerView.visibility = View.GONE
+            totalPriceText.visibility = View.GONE
+            checkoutButton.visibility = View.GONE
+        } else {
+            emptyCartText.visibility = View.GONE
+            cartRecyclerView.visibility = View.VISIBLE
+            totalPriceText.visibility = View.VISIBLE
+            checkoutButton.visibility = View.VISIBLE
+            updateTotalPrice()
+        }
+    }
+
+    private fun updateTotalPrice() {
+        val total = cartItems.sumOf { it.totalPrice }
+        val format = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
+        totalPriceText.text = format.format(total)
     }
 
     override fun onStart() {

@@ -3,14 +3,14 @@ package com.doan_adr.smart_order_app.Models
 data class Order(
     val id: String = "",
     val tableId: String = "",
-    val tableName: String = "",
+    val tableName: String = "", // Giữ lại trường này nếu cần
     val status: String = "pending",
-    val orderTime: String = "",
-    val items: Map<String, OrderItem> = emptyMap(),
-    val subtotal: Double = 0.0,
+    val createdAt: String = "", // Đã đổi tên từ orderTime
+    val cartItems: List<Map<String, Any>> = emptyList(), // Đã thay đổi kiểu dữ liệu để đồng bộ với CartDialogFragment
+    val originalTotalPrice: Double = 0.0, // Đã đổi tên từ subtotal
     val discountCode: String? = null,
-    val discountValue: Double = 0.0,
-    val total: Double = 0.0,
+    val discountValue: Double = 0.0, // Thêm trường discountValue
+    val finalTotalPrice: Double = 0.0, // Đã đổi tên từ total
     val paymentMethod: String = "table",
     val paymentStatus: String = "pending",
     val cookingStartTime: String? = null,
@@ -20,6 +20,7 @@ data class Order(
     val qrData: String? = null
 )
 
+// Giữ nguyên OrderItem và các hàm liên quan nếu cần
 data class OrderItem(
     val dishId: String = "",
     val dishName: String = "",
@@ -36,12 +37,12 @@ fun Order.toMap(): Map<String, Any?> {
         "tableId" to this.tableId,
         "tableName" to this.tableName,
         "status" to this.status,
-        "orderTime" to this.orderTime,
-        "items" to this.items.mapValues { it.value.toMap() },
-        "subtotal" to this.subtotal,
+        "createdAt" to this.createdAt,
+        "cartItems" to this.cartItems,
+        "originalTotalPrice" to this.originalTotalPrice,
         "discountCode" to this.discountCode,
         "discountValue" to this.discountValue,
-        "total" to this.total,
+        "finalTotalPrice" to this.finalTotalPrice,
         "paymentMethod" to this.paymentMethod,
         "paymentStatus" to this.paymentStatus,
         "cookingStartTime" to this.cookingStartTime,
@@ -52,6 +53,7 @@ fun Order.toMap(): Map<String, Any?> {
     )
 }
 
+// Giữ nguyên hàm này nếu bạn vẫn sử dụng OrderItem ở các phần khác của ứng dụng
 fun OrderItem.toMap(): Map<String, Any> {
     return hashMapOf(
         "dishId" to this.dishId,

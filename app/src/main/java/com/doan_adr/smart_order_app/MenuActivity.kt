@@ -20,15 +20,11 @@ import com.doan_adr.smart_order_app.adapters.MenuAdapter
 import com.doan_adr.smart_order_app.fragments.CartDialogFragment
 import com.doan_adr.smart_order_app.fragments.DishDetailDialogFragment
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
-import com.google.android.material.badge.BadgeDrawable
-import com.google.android.material.badge.BadgeUtils
-import com.google.android.material.badge.ExperimentalBadgeUtils
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
 import java.util.ArrayList
 
-@OptIn(ExperimentalBadgeUtils::class)
 class MenuActivity : AppCompatActivity(),
     DishDetailDialogFragment.OnCartItemAddedListener,
     CartDialogFragment.OnCartItemsUpdatedListener {
@@ -36,7 +32,6 @@ class MenuActivity : AppCompatActivity(),
     private lateinit var toolbar: Toolbar
     private lateinit var tabLayout: TabLayout
     private lateinit var recyclerView: RecyclerView
-    private var cartMenuItem: MenuItem? = null
     private lateinit var cartBadgeCount: TextView
     private val cartItems: MutableList<CartItem> = mutableListOf()
     private lateinit var tableId: String
@@ -174,9 +169,32 @@ class MenuActivity : AppCompatActivity(),
         val cartCount = cartItems.sumOf { it.quantity }
         if (cartCount > 0) {
             cartBadgeCount.text = if (cartCount > 99) "99+" else cartCount.toString()
-            cartBadgeCount.visibility = View.VISIBLE
+            if (cartBadgeCount.visibility != View.VISIBLE) {
+                cartBadgeCount.apply {
+                    visibility = View.VISIBLE
+                    alpha = 0f
+                    scaleX = 0f
+                    scaleY = 0f
+                    animate()
+                        .alpha(1f)
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(200)
+                        .start()
+                }
+            }
         } else {
-            cartBadgeCount.visibility = View.GONE
+            if (cartBadgeCount.visibility != View.GONE) {
+                cartBadgeCount.animate()
+                    .alpha(0f)
+                    .scaleX(0f)
+                    .scaleY(0f)
+                    .setDuration(200)
+                    .withEndAction {
+                        cartBadgeCount.visibility = View.GONE
+                    }
+                    .start()
+            }
         }
     }
 
@@ -233,6 +251,10 @@ class MenuActivity : AppCompatActivity(),
         } else {
             finish()
         }
+    }
+
+    fun getTableId(): String {
+        return this.tableId
     }
 
     private fun onDishSelected(dish: Dish) {

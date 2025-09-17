@@ -10,6 +10,7 @@ data class CartItem(
     val dishName: String = "",
     var quantity: Int = 1,
     val note: String = "",
+    val imageUrl: String? = null,
     val toppings: Map<String, ToppingSelection> = emptyMap(),
     val unitPrice: Double = 0.0,
     var totalPrice: Double = 0.0
@@ -29,6 +30,7 @@ fun CartItem.toMap(): Map<String, Any> {
         "dishName" to this.dishName,
         "quantity" to this.quantity,
         "note" to this.note,
+        "imageUrl" to (this.imageUrl ?: ""),
         "toppings" to this.toppings.mapValues { it.value.toMap() },
         "unitPrice" to this.unitPrice,
         "totalPrice" to this.totalPrice
