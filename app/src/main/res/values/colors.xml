@@ -32,4 +32,9 @@
     <color name="outline_variant">#CAC4D0</color>
     <color name="surface">#FFFFFF</color>
     <color name="primary_container">#FFEDE8</color>
+
+    <color name="pink_momo">#AF0A78</color>
+
+    <color name="green">#4CAF50</color>
+    <color name="red">#F44336</color>
 </resources>

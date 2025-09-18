@@ -1,5 +1,6 @@
 package com.doan_adr.smart_order_app
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -16,18 +17,26 @@ import androidx.recyclerview.widget.RecyclerView
 import com.doan_adr.smart_order_app.Models.CartItem
 import com.doan_adr.smart_order_app.Models.Category
 import com.doan_adr.smart_order_app.Models.Dish
+import com.doan_adr.smart_order_app.Models.Order
 import com.doan_adr.smart_order_app.adapters.MenuAdapter
 import com.doan_adr.smart_order_app.fragments.CartDialogFragment
 import com.doan_adr.smart_order_app.fragments.DishDetailDialogFragment
+import com.doan_adr.smart_order_app.fragments.PaymentMethodDialogFragment
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.ArrayList
+import java.util.Calendar
+import java.util.Locale
+import java.util.Random
+import java.util.UUID
 
 class MenuActivity : AppCompatActivity(),
     DishDetailDialogFragment.OnCartItemAddedListener,
-    CartDialogFragment.OnCartItemsUpdatedListener {
+    CartDialogFragment.OnCartItemsUpdatedListener,
+    PaymentMethodDialogFragment.OnPaymentSelectedListener {
 
     private lateinit var toolbar: Toolbar
     private lateinit var tabLayout: TabLayout
@@ -38,6 +47,14 @@ class MenuActivity : AppCompatActivity(),
     private lateinit var tableName: String
     private lateinit var menuAdapter: MenuAdapter
     private val databaseManager = FirebaseDatabaseManager()
+
+    // Thêm các biến mới để lưu trữ thông tin đơn hàng cuối cùng
+    private var finalOrderCartItems: ArrayList<CartItem> = ArrayList()
+    private var finalOriginalTotalPrice: Double = 0.0
+    private var finalDiscountCode: String? = null
+    private var finalDiscountValue: Double = 0.0
+    private var finalTotalPrice: Double = 0.0
+
     private var isOrderCreated = false
 
     private var dishesListener: ListenerRegistration? = null
@@ -165,6 +182,25 @@ class MenuActivity : AppCompatActivity(),
         updateCartIconBadge()
     }
 
+    override fun onCheckout(
+        cartItems: ArrayList<CartItem>,
+        originalTotalPrice: Double,
+        discountCode: String?,
+        discountValue: Double,
+        finalTotalPrice: Double
+    ) {
+        // Lưu trữ các giá trị cuối cùng
+        this.finalOrderCartItems = cartItems
+        this.finalOriginalTotalPrice = originalTotalPrice
+        this.finalDiscountCode = discountCode
+        this.finalDiscountValue = discountValue
+        this.finalTotalPrice = finalTotalPrice
+
+        // Mở DialogFragment thanh toán
+        val paymentDialogFragment = PaymentMethodDialogFragment.newInstance()
+        paymentDialogFragment.show(supportFragmentManager, "PaymentDialogFragment")
+    }
+
     private fun updateCartIconBadge() {
         val cartCount = cartItems.sumOf { it.quantity }
         if (cartCount > 0) {
@@ -260,5 +296,75 @@ class MenuActivity : AppCompatActivity(),
     private fun onDishSelected(dish: Dish) {
         val dialog = DishDetailDialogFragment.newInstance(dish)
         dialog.show(supportFragmentManager, "DishDetailDialog")
+    }
+
+    /**
+     * Tạo mã đơn hàng theo quy tắc đã định nghĩa.
+     * [Mã Cửa Hàng]-[Ngày Tháng]-[Giờ Phút Giây]-[Số ngẫu nhiên]
+     *
+     * Ví dụ: SO-250918-164701-382
+     *
+     * SO: Mã viết tắt của cửa hàng ("Smart Order"). Bạn có thể thay đổi tùy ý.
+     *
+     * 250918: Ngày, tháng, năm (ngày 18 tháng 09 năm 2025).
+     *
+     * 164701: Giờ, phút, giây (16:47:01).
+     *
+     * 382: Ba chữ số ngẫu nhiên để đảm bảo không trùng lặp nếu có nhiều đơn hàng được đặt cùng một giây.
+     */
+    private fun generateOrderId(): String {
+        val storePrefix = "QL" // Mã cửa hàng
+        val now = Calendar.getInstance().time
+        val dateFormat = SimpleDateFormat("yyMMdd", Locale.getDefault())
+        val timeFormat = SimpleDateFormat("HHmmss", Locale.getDefault())
+        val randomSuffix = Random().nextInt(900) + 100 // Tạo số ngẫu nhiên từ 100 đến 999
+
+        val date = dateFormat.format(now)
+        val time = timeFormat.format(now)
+
+        return "$storePrefix-$date-$time-$randomSuffix"
+    }
+
+    // Create order and navigate to OrderTrackingActivity
+    override fun onPaymentSelected(method: String) {
+        // Kiểm tra xem các biến đã được gán giá trị từ onCheckout chưa
+        if (finalOrderCartItems.isEmpty()) {
+            Toast.makeText(this, "Không có sản phẩm nào trong giỏ hàng.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Tạo mã đơn hàng tùy chỉnh
+        val customOrderId = generateOrderId()
+
+        val newOrder = Order(
+            id = customOrderId,
+            tableId = tableId,
+            tableName = "Bàn số $tableId",
+            cartItems = finalOrderCartItems,
+            originalTotalPrice = finalOriginalTotalPrice,
+            discountCode = finalDiscountCode,
+            discountValue = finalDiscountValue,
+            finalTotalPrice = finalTotalPrice,
+            paymentMethod = method,
+            paymentStatus = if (method == "cash") "pending" else "pending_online",
+            status = if (method == "cash") "pending" else "pending_online"
+        )
+
+        lifecycleScope.launch {
+            try {
+                // Lưu đơn hàng vào Firestore
+                databaseManager.createOrder(newOrder)
+
+                Toast.makeText(this@MenuActivity, "Đơn hàng đã được đặt thành công!", Toast.LENGTH_LONG).show()
+                val intent = Intent(this@MenuActivity, OrderTrackingActivity::class.java).apply {
+                    putExtra("orderId", newOrder.id)
+                }
+                startActivity(intent)
+                finish()
+            } catch (e: Exception) {
+                Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
+                Toast.makeText(this@MenuActivity, "Có lỗi xảy ra, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

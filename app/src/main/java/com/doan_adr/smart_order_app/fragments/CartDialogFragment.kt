@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
@@ -17,6 +18,10 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import com.doan_adr.smart_order_app.Models.Discount
+import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
+import kotlinx.coroutines.launch
 import java.io.Serializable
 import java.text.NumberFormat
 import java.util.ArrayList
@@ -28,17 +33,33 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
     private lateinit var emptyCartText: TextView
     private lateinit var totalPriceText: TextView
     private lateinit var checkoutButton: Button
+
+    private lateinit var discountCodeEditText: EditText
+    private lateinit var applyDiscountButton: Button
+    private lateinit var discountInfoTextView: TextView
+    private lateinit var subtotalPriceText: TextView
+
     private var cartItems: ArrayList<CartItem> = ArrayList()
     private var listener: OnCartItemsUpdatedListener? = null
+    private var appliedDiscount: Discount? = null
 
+    // Thay đổi interface để truyền cả thông tin giảm giá và tổng tiền cuối cùng
     interface OnCartItemsUpdatedListener {
         fun onCartItemsUpdated(updatedItems: ArrayList<CartItem>)
+        // Thêm phương thức mới để xử lý việc đặt hàng
+        fun onCheckout(
+            cartItems: ArrayList<CartItem>,
+            originalTotalPrice: Double,
+            discountCode: String?,
+            discountValue: Double,
+            finalTotalPrice: Double
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setStyle(STYLE_NORMAL, R.style.FullScreenDialogStyle)
-        cartItems = arguments?.getSerializable(ARG_CART_ITEMS) as? ArrayList<CartItem> ?: ArrayList()
+        cartItems = arguments?.getParcelableArrayList(ARG_CART_ITEMS) ?: ArrayList()
     }
 
     override fun onCreateView(
@@ -50,6 +71,11 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         emptyCartText = view.findViewById(R.id.empty_cart_text)
         totalPriceText = view.findViewById(R.id.total_price_text)
         checkoutButton = view.findViewById(R.id.checkout_button)
+
+        discountCodeEditText = view.findViewById(R.id.discount_code_edit_text)
+        applyDiscountButton = view.findViewById(R.id.apply_discount_button)
+        discountInfoTextView = view.findViewById(R.id.discount_info_text_view)
+        subtotalPriceText = view.findViewById(R.id.subtotal_price_text)
 
         val window = dialog?.window ?: return view
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -63,7 +89,37 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
 
         updateCartState()
         checkoutButton.setOnClickListener {
-            Toast.makeText(requireContext(), "Chức năng đặt hàng chưa được triển khai.", Toast.LENGTH_SHORT).show()
+            // Lấy thông tin cần thiết từ CartDialogFragment
+            val originalTotal = cartItems.sumOf { it.totalPrice }
+            var discountValue = 0.0
+            var finalTotal = originalTotal
+
+            appliedDiscount?.let { discount ->
+                discountValue = when (discount.discountType) {
+                    "percentage" -> (originalTotal * (discount.value / 100)).coerceAtMost(discount.maxDiscount)
+                    "fixed" -> discount.value
+                    else -> 0.0
+                }
+                finalTotal = originalTotal - discountValue
+            }
+
+            // Gọi phương thức checkout mới trong Activity cha
+            listener?.onCheckout(
+                cartItems,
+                originalTotal,
+                appliedDiscount?.code,
+                discountValue,
+                finalTotal
+            )
+        }
+
+        applyDiscountButton.setOnClickListener {
+            val discountCode = discountCodeEditText.text.toString()
+            if (discountCode.isNotEmpty()) {
+                checkAndApplyDiscount(discountCode)
+            } else {
+                Toast.makeText(context, "Vui lòng nhập mã giảm giá", Toast.LENGTH_SHORT).show()
+            }
         }
 
         cartRecyclerView.layoutManager = LinearLayoutManager(context)
@@ -90,6 +146,24 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         updateCartState()
     }
 
+    private fun checkAndApplyDiscount(code: String) {
+        val databaseManager = FirebaseDatabaseManager()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val discount = databaseManager.getDiscountByCode(code)
+            if (discount != null) {
+                if (cartItems.sumOf { it.totalPrice } >= discount.minOrderValue) {
+                    appliedDiscount = discount
+                    updateTotalPrice()
+                    Toast.makeText(context, "Áp dụng mã giảm giá thành công!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Đơn hàng chưa đủ điều kiện áp dụng mã này.", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "Mã giảm giá không hợp lệ.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun updateCartState() {
         if (cartItems.isEmpty()) {
             emptyCartText.visibility = View.VISIBLE
@@ -106,9 +180,33 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
     }
 
     private fun updateTotalPrice() {
-        val total = cartItems.sumOf { it.totalPrice }
+        val subtotal = cartItems.sumOf { it.totalPrice }
+        var finalTotal = subtotal
+        var discountAmount = 0.0
+
+        appliedDiscount?.let { discount ->
+            discountAmount = when (discount.discountType) {
+                "percentage" -> (subtotal * (discount.value / 100)).coerceAtMost(discount.maxDiscount)
+                "fixed" -> discount.value
+                else -> 0.0
+            }
+            finalTotal = subtotal - discountAmount
+        }
+
         val format = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
-        totalPriceText.text = format.format(total)
+
+        subtotalPriceText.text = format.format(subtotal)
+
+        if (appliedDiscount != null) {
+            subtotalPriceText.visibility = View.VISIBLE
+            discountInfoTextView.text = "- ${format.format(discountAmount)}"
+            discountInfoTextView.visibility = View.VISIBLE
+        } else {
+            subtotalPriceText.visibility = View.GONE
+            discountInfoTextView.visibility = View.GONE
+        }
+
+        totalPriceText.text = format.format(finalTotal)
     }
 
     override fun onStart() {
@@ -127,7 +225,7 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         fun newInstance(cartItems: ArrayList<CartItem>): CartDialogFragment {
             return CartDialogFragment().apply {
                 arguments = Bundle().apply {
-                    putSerializable(ARG_CART_ITEMS, cartItems as Serializable)
+                    putParcelableArrayList(ARG_CART_ITEMS, cartItems)
                 }
             }
         }

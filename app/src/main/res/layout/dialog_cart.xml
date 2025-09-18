@@ -66,44 +66,85 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <!-- Mã giảm giá -->
-        <TextView
-            android:id="@+id/discount_code_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:fontFamily="@font/roboto_bold"
-            android:text="🎟️ Mã giảm giá (nếu có)"
-            android:textColor="@color/black"
-            android:textSize="16sp" />
+
 
         <LinearLayout
+            android:id="@+id/discount_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
             android:layout_marginTop="8dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_marginBottom="8dp"
+            app:layout_constraintBottom_toTopOf="@id/bottom_container"
+            app:layout_constraintTop_toBottomOf="@id/cart_recycler_view">
 
-            <EditText
-                android:id="@+id/discount_code_edit_text"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@drawable/rounded_edittext_background"
-                android:hint="Nhập mã giảm giá"
-                android:padding="12dp"
-                android:textColor="@color/black"
-                android:textSize="14sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/apply_discount_button"
-                style="@style/Widget.Material3.Button.TextButton"
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Áp dụng"
-                android:textColor="@color/primary"
+                android:text="Mã giảm giá"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/discount_code_edit_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Nhập mã giảm giá"
+                    android:textSize="16sp"
+                    android:padding="8dp"
+                    android:background="@drawable/rounded_edittext_bg" />
+
+                <Button
+                    android:id="@+id/apply_discount_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Áp dụng"
+                    android:textColor="@color/primary"
+                    android:layout_marginStart="8dp"
+                    style="@style/Widget.MaterialComponents.Button.TextButton" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/discount_info_text_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:textSize="14sp"
-                android:fontFamily="@font/roboto_bold" />
+                android:textColor="@color/success"
+                android:text="Giảm giá: 0 đ"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Tạm tính"
+                    android:textSize="16sp"
+                    android:textColor="@android:color/black" />
+
+                <TextView
+                    android:id="@+id/subtotal_price_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="@android:color/black"
+                    tools:text="150.000 đ" />
+            </LinearLayout>
+
         </LinearLayout>
 
         <!-- Divider -->
@@ -112,32 +153,6 @@
             android:layout_height="1dp"
             android:layout_marginVertical="16dp"
             android:background="@color/divider_color" />
-
-        <!-- GIẢM GIÁ -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Mã giảm giá"
-                android:textColor="@color/black"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/discount_value_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/roboto_bold"
-                android:textColor="@color/black"
-                android:textSize="16sp"
-                tools:text="-15.000 đ" />
-        </LinearLayout>
 
         <!-- Tổng tiền -->
         <LinearLayout

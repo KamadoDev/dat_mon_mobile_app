@@ -10,7 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.doan_adr.smart_order_app.Models.Table
 import com.doan_adr.smart_order_app.R
-import android.graphics.PorterDuff
+import com.google.android.material.card.MaterialCardView // Import MaterialCardView
 
 class TableAdapter(
     private val context: Context,
@@ -19,6 +19,7 @@ class TableAdapter(
 ) : RecyclerView.Adapter<TableAdapter.TableViewHolder>() {
 
     class TableViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val cardView: MaterialCardView = itemView.findViewById(R.id.cardView) // Lấy reference đến cardView
         val tableName: TextView = itemView.findViewById(R.id.table_name)
         val statusIcon: ImageView = itemView.findViewById(R.id.status_icon)
         val orderIdText: TextView = itemView.findViewById(R.id.order_id_text)
@@ -34,18 +35,25 @@ class TableAdapter(
         val table = tables[position]
         holder.tableName.text = table.name
 
-        // Logic cập nhật màu sắc dựa trên trạng thái
+        // Logic cập nhật giao diện dựa trên trạng thái
         if (table.status == "available") {
-            // Thay đổi màu sắc của icon thành màu success
-            holder.statusIcon.setColorFilter(ContextCompat.getColor(context, R.color.success), PorterDuff.Mode.SRC_IN)
-            holder.tableName.setTextColor(ContextCompat.getColor(context, R.color.success))
-            holder.orderIdText.visibility = View.GONE
+            // Cập nhật giao diện cho bàn trống
+            holder.statusIcon.setImageResource(R.drawable.dine_lamp_24px)
+            holder.statusIcon.setColorFilter(ContextCompat.getColor(context, R.color.green))
+            holder.tableName.setTextColor(ContextCompat.getColor(context, R.color.dark))
+            holder.orderIdText.text = "Trống"
+            holder.orderIdText.setTextColor(ContextCompat.getColor(context, R.color.green))
+            holder.cardView.strokeColor = ContextCompat.getColor(context, R.color.green)
+            holder.cardView.strokeWidth = 2
         } else {
-            // Thay đổi màu sắc của icon thành màu danger
-            holder.statusIcon.setColorFilter(ContextCompat.getColor(context, R.color.danger), PorterDuff.Mode.SRC_IN)
-            holder.tableName.setTextColor(ContextCompat.getColor(context, R.color.danger))
-            holder.orderIdText.visibility = View.VISIBLE
-            holder.orderIdText.text = "Đơn: ${table.currentOrderId ?: "N/A"}"
+            // Cập nhật giao diện cho bàn đã có khách
+            holder.statusIcon.setImageResource(R.drawable.restaurant_24px)
+            holder.statusIcon.setColorFilter(ContextCompat.getColor(context, R.color.primary))
+            holder.tableName.setTextColor(ContextCompat.getColor(context, R.color.dark))
+            holder.orderIdText.text = "Đơn: ${table.currentOrderId ?: "Đang chờ"}"
+            holder.orderIdText.setTextColor(ContextCompat.getColor(context, R.color.gray))
+            holder.cardView.strokeColor = ContextCompat.getColor(context, R.color.primary)
+            holder.cardView.strokeWidth = 2
         }
 
         holder.itemView.setOnClickListener {

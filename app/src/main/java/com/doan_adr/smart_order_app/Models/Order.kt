@@ -1,26 +1,42 @@
 package com.doan_adr.smart_order_app.Models
 
-data class Order(
-    val id: String = "",
-    val tableId: String = "",
-    val tableName: String = "", // Giữ lại trường này nếu cần
-    val status: String = "pending",
-    val createdAt: String = "", // Đã đổi tên từ orderTime
-    val cartItems: List<Map<String, Any>> = emptyList(), // Đã thay đổi kiểu dữ liệu để đồng bộ với CartDialogFragment
-    val originalTotalPrice: Double = 0.0, // Đã đổi tên từ subtotal
-    val discountCode: String? = null,
-    val discountValue: Double = 0.0, // Thêm trường discountValue
-    val finalTotalPrice: Double = 0.0, // Đã đổi tên từ total
-    val paymentMethod: String = "table",
-    val paymentStatus: String = "pending",
-    val cookingStartTime: String? = null,
-    val readyTime: String? = null,
-    val servedTime: String? = null,
-    val completedTime: String? = null,
-    val qrData: String? = null
-)
+import android.os.Parcelable
+import com.doan_adr.smart_order_app.utils.TimestampParceler
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.TypeParceler
+import java.util.*
+// Import cần thiết
+import com.google.firebase.firestore.ServerTimestamp
+import com.google.firebase.Timestamp
 
-// Giữ nguyên OrderItem và các hàm liên quan nếu cần
+@Parcelize
+@TypeParceler<Timestamp, TimestampParceler>
+data class Order(
+    val id: String = UUID.randomUUID().toString(),
+    val tableId: String = "",
+    val tableName: String = "",
+    val status: String = "pending",
+    @ServerTimestamp
+    var createdAt: Timestamp? = null,
+    val cartItems: List<CartItem> = emptyList(), // Sử dụng CartItem từ file CartItem.kt
+    val originalTotalPrice: Double = 0.0,
+    val discountCode: String? = null,
+    val discountValue: Double = 0.0,
+    val finalTotalPrice: Double = 0.0,
+    val paymentMethod: String = "cash",
+    val paymentStatus: String = "pending",
+    val cookingStartTime: Timestamp? = null,
+    val readyTime: Timestamp? = null,
+    val servedTime: Timestamp? = null,
+    val completedTime: Timestamp? = null,
+    val qrData: String? = null
+) : Parcelable
+
+/**
+ * Lớp dữ liệu đại diện cho một món ăn trong đơn hàng.
+ * Lưu ý: Lớp này cần khớp với CartItem.kt để đồng bộ dữ liệu.
+ */
+@Parcelize
 data class OrderItem(
     val dishId: String = "",
     val dishName: String = "",
@@ -29,8 +45,11 @@ data class OrderItem(
     val toppings: Map<String, ToppingSelection> = emptyMap(),
     val unitPrice: Double = 0.0,
     val totalPrice: Double = 0.0
-)
+) : Parcelable
 
+/**
+ * Hàm mở rộng để chuyển đổi đối tượng Order sang Map để lưu trữ trên Firestore.
+ */
 fun Order.toMap(): Map<String, Any?> {
     return hashMapOf(
         "id" to this.id,
@@ -38,7 +57,7 @@ fun Order.toMap(): Map<String, Any?> {
         "tableName" to this.tableName,
         "status" to this.status,
         "createdAt" to this.createdAt,
-        "cartItems" to this.cartItems,
+        "cartItems" to this.cartItems.map { it.toMap() }, // Chuyển đổi CartItem sang Map
         "originalTotalPrice" to this.originalTotalPrice,
         "discountCode" to this.discountCode,
         "discountValue" to this.discountValue,
@@ -53,7 +72,10 @@ fun Order.toMap(): Map<String, Any?> {
     )
 }
 
-// Giữ nguyên hàm này nếu bạn vẫn sử dụng OrderItem ở các phần khác của ứng dụng
+/**
+ * Hàm mở rộng để chuyển đổi đối tượng OrderItem sang Map.
+ * Lưu ý: Có thể sử dụng lại hàm toMap() của CartItem nếu hai lớp này đồng bộ.
+ */
 fun OrderItem.toMap(): Map<String, Any> {
     return hashMapOf(
         "dishId" to this.dishId,

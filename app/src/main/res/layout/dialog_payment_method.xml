@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chọn phương thức thanh toán"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/payment_cash_button"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton.Icon"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:text="Thanh toán tiền mặt"
+        android:textColor="@color/primary"
+        android:textSize="16sp"
+        app:cornerRadius="8dp"
+        app:icon="@drawable/payments_24px"
+        app:iconGravity="textStart"
+        app:iconPadding="16dp"
+        app:strokeColor="@color/primary"
+        app:strokeWidth="1.5dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/payment_online_button"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton.Icon"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:text="Thanh toán trực tuyến"
+        android:textColor="@color/primary"
+        android:textSize="16sp"
+        app:cornerRadius="8dp"
+        app:icon="@drawable/qr_code_scanner_24px"
+        app:iconGravity="textStart"
+        app:iconPadding="16dp"
+        app:strokeColor="@color/primary"
+        app:strokeWidth="1.5dp" />
+
+</LinearLayout>

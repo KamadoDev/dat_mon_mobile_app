@@ -91,8 +91,13 @@ class FirebaseDatabaseManager {
 
     suspend fun lockTable(tableId: String) {
         try {
-            db.collection("tables").document(tableId)
-                .update("status", "occupied")
+            val updates = hashMapOf(
+                "status" to "occupied",
+                "currentOrderId" to null
+            )
+            db.collection("tables")
+                .document(tableId)
+                .update(updates as Map<String, Any?>)
                 .await()
         } catch (e: Exception) {
             throw Exception("Lỗi khi khóa bàn: ${e.message}", e)
@@ -331,14 +336,46 @@ class FirebaseDatabaseManager {
             }
     }
 
+    /**
+     * Tạo một đơn hàng mới và đồng thời cập nhật trạng thái bàn.
+     */
     suspend fun createOrder(order: Order) {
-        // Lưu đơn hàng vào collection "orders"
-        db.collection("orders").document(order.id).set(order.toMap()).await()
-        Log.d("FirebaseDatabaseManager", "Đơn hàng ${order.id} đã được tạo thành công.")
+        // Tạo một batch write để đảm bảo cả hai thao tác thành công hoặc thất bại cùng nhau
+        val batch = db.batch()
 
-        // Đánh dấu bàn đã được đặt hàng là "busy"
-        db.collection("tables").document(order.tableId).update("status", "busy").await()
-        Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái bàn ${order.tableId} thành 'busy'.")
+        // 1. Lưu đơn hàng vào collection "orders"
+        val orderRef = db.collection("orders").document(order.id)
+        batch.set(orderRef, order.toMap())
+
+        // 2. Cập nhật trạng thái và mã đơn hàng hiện tại cho bàn
+        val tableRef = db.collection("tables").document(order.tableId)
+        val tableUpdates = hashMapOf(
+            "status" to "occupied",
+            "currentOrderId" to order.id
+        )
+        batch.update(tableRef, tableUpdates as Map<String, Any>)
+
+        // Thực hiện batch
+        batch.commit().await()
+
+        Log.d("FirebaseDatabaseManager", "Đơn hàng ${order.id} đã được tạo và bàn ${order.tableId} đã được cập nhật thành công.")
+    }
+
+    suspend fun updateOrderStatus(orderId: String, newStatus: String) {
+        db.collection("orders").document(orderId)
+            .update("status", newStatus)
+            .await()
+        Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái đơn hàng $orderId thành '$newStatus'")
+    }
+
+    suspend fun updateTableWithOrderId(tableId: String, orderId: String) {
+        try {
+            db.collection("tables").document(tableId).update("orderId", orderId).await()
+            Log.d("FirebaseDatabaseManager", "Đã cập nhật orderId ${orderId} cho bàn ${tableId} thành công.")
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi cập nhật orderId cho bàn: ${e.message}")
+            throw e
+        }
     }
 
 }

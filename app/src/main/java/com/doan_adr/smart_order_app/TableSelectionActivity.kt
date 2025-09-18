@@ -44,10 +44,9 @@ class TableSelectionActivity : AppCompatActivity() {
             Toast.makeText(this@TableSelectionActivity, "Đang khóa bàn...", Toast.LENGTH_SHORT).show()
             lifecycleScope.launch {
                 try {
-                    // Khóa bàn ngay lập tức và chờ phản hồi
+                    // Khóa bàn và đặt currentOrderId = null
                     databaseManager.lockTable(table.id)
 
-                    // Chuyển màn hình sau khi bàn đã được khóa thành công
                     val intent = Intent(this@TableSelectionActivity, MenuActivity::class.java).apply {
                         putExtra("tableId", table.id)
                         putExtra("tableName", table.name)
