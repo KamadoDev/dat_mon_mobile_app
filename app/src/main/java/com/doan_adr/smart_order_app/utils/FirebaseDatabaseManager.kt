@@ -3,10 +3,14 @@ package com.doan_adr.smart_order_app.utils
 import android.util.Log
 import com.doan_adr.smart_order_app.Models.*
 import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Source
+import com.google.firebase.firestore.WriteBatch
 import kotlinx.coroutines.tasks.await
+import java.sql.Timestamp
+import java.util.Date
 
 class FirebaseDatabaseManager {
     private val db = FirebaseFirestore.getInstance()
@@ -345,7 +349,7 @@ class FirebaseDatabaseManager {
 
         // 1. Lưu đơn hàng vào collection "orders"
         val orderRef = db.collection("orders").document(order.id)
-        batch.set(orderRef, order.toMap())
+        batch.set(orderRef, order)
 
         // 2. Cập nhật trạng thái và mã đơn hàng hiện tại cho bàn
         val tableRef = db.collection("tables").document(order.tableId)
@@ -361,11 +365,122 @@ class FirebaseDatabaseManager {
         Log.d("FirebaseDatabaseManager", "Đơn hàng ${order.id} đã được tạo và bàn ${order.tableId} đã được cập nhật thành công.")
     }
 
+    suspend fun cancelOrder(orderId: String) {
+        val db = FirebaseFirestore.getInstance()
+        val batch: WriteBatch = db.batch()
+
+        // 1. Lấy reference đến đơn hàng và đọc dữ liệu
+        val orderRef = db.collection("orders").document(orderId)
+        val orderSnapshot = orderRef.get().await()
+
+        // Kiểm tra xem đơn hàng có tồn tại không
+        if (!orderSnapshot.exists()) {
+            throw Exception("Lỗi: Không tìm thấy đơn hàng cần hủy.")
+        }
+
+        // 2. Lấy trạng thái của đơn hàng
+        val orderStatus = orderSnapshot.getString("status")
+        val tableId = orderSnapshot.getString("tableId")
+
+        // 3. Quy tắc: Không cho phép hủy nếu đơn hàng đã được chế biến hoặc đã sẵn sàng
+        if (orderStatus == "cooking" || orderStatus == "ready" || orderStatus == "served") {
+            throw Exception("Không thể hủy đơn hàng đã hoặc đang được chế biến.")
+        }
+
+        // Nếu các điều kiện trên không vi phạm, tiến hành hủy đơn
+        batch.delete(orderRef)
+
+        // Cập nhật trạng thái bàn về "available"
+        if (tableId != null) {
+            val tableRef = db.collection("tables").document(tableId)
+            val tableUpdates = mapOf(
+                "status" to "available",
+                "currentOrderId" to ""
+            )
+            batch.update(tableRef, tableUpdates as Map<String, Any>)
+        }
+
+        // Thực hiện batch write
+        batch.commit().await()
+        Log.d("FirebaseDatabaseManager", "Đơn hàng $orderId đã được hủy. Bàn $tableId đã được trả về trạng thái trống.")
+    }
+
+    // Trong class FirebaseDatabaseManager
+    suspend fun updatePaymentAndCompletion(orderId: String) {
+        val db = FirebaseFirestore.getInstance()
+        val batch: WriteBatch = db.batch()
+
+        // 1. Lấy reference đến đơn hàng và đọc dữ liệu
+        val orderRef = db.collection("orders").document(orderId)
+        val orderSnapshot = orderRef.get().await()
+
+        if (!orderSnapshot.exists()) {
+            throw Exception("Lỗi: Không tìm thấy đơn hàng để thanh toán.")
+        }
+
+        val tableId = orderSnapshot.getString("tableId")
+        val orderStatus = orderSnapshot.getString("status")
+        val paymentStatus = orderSnapshot.getString("paymentStatus")
+
+        // 2. Quy tắc: Chỉ cho phép thanh toán nếu đơn hàng đã được phục vụ và chưa được thanh toán
+        if (orderStatus != "served" || paymentStatus == "paid") {
+            throw Exception("Đơn hàng chưa được phục vụ hoặc đã được thanh toán, không thể tiến hành thanh toán tại chỗ.")
+        }
+
+        // 3. Cập nhật trạng thái thanh toán và trạng thái chung của đơn hàng
+        val orderUpdates = mapOf(
+            "paymentStatus" to "paid",
+            "status" to "completed",
+            "completedTime" to FieldValue.serverTimestamp() // Ghi nhận thời gian hoàn thành
+        )
+        batch.update(orderRef, orderUpdates)
+
+        // 4. Cập nhật trạng thái của bàn
+        if (tableId != null) {
+            val tableRef = db.collection("tables").document(tableId)
+            val tableUpdates = mapOf(
+                "status" to "available", // Trả bàn về trạng thái "available"
+                "currentOrderId" to "" // Xóa mã đơn hàng hiện tại của bàn
+            )
+            batch.update(tableRef, tableUpdates as Map<String, Any>)
+        }
+
+        // Thực hiện batch write để đảm bảo tính nguyên tử (atomic)
+        batch.commit().await()
+        Log.d("FirebaseDatabaseManager", "Đơn hàng $orderId đã được thanh toán và hoàn thành. Bàn $tableId đã được trả về trạng thái trống.")
+    }
+
     suspend fun updateOrderStatus(orderId: String, newStatus: String) {
-        db.collection("orders").document(orderId)
-            .update("status", newStatus)
-            .await()
-        Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái đơn hàng $orderId thành '$newStatus'")
+        try {
+            val updates = hashMapOf<String, Any>(
+                "status" to newStatus
+            )
+
+            when (newStatus) {
+                "cooking" -> {
+                    updates["cookingStartTime"] = FieldValue.serverTimestamp()
+                }
+                "ready" -> {
+                    updates["readyTime"] = FieldValue.serverTimestamp()
+                }
+                "served" -> {
+                    updates["servedTime"] = FieldValue.serverTimestamp()
+                }
+                "completed" -> {
+                    updates["completedTime"] = FieldValue.serverTimestamp()
+                }
+            }
+
+            db.collection("orders").document(orderId)
+                .update(updates)
+                .await()
+
+            Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái đơn hàng $orderId thành '$newStatus'")
+
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi cập nhật trạng thái đơn hàng: ${e.message}", e)
+            // Xử lý lỗi tại đây nếu cần
+        }
     }
 
     suspend fun updateTableWithOrderId(tableId: String, orderId: String) {

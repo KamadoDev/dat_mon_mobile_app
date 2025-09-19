@@ -14,14 +14,18 @@ data class CartItem(
     val toppings: Map<String, ToppingSelection> = emptyMap(),
     val unitPrice: Double = 0.0,
     var totalPrice: Double = 0.0
-) : Parcelable
+) : Parcelable {
+    companion object
+}
 
 @Parcelize
 data class ToppingSelection(
     val name: String = "",
     val quantity: Int = 1,
     val price: Double = 0.0
-) : Parcelable
+) : Parcelable {
+    companion object
+}
 
 fun CartItem.toMap(): Map<String, Any> {
     return hashMapOf(
@@ -42,5 +46,29 @@ fun ToppingSelection.toMap(): Map<String, Any> {
         "name" to this.name,
         "quantity" to this.quantity,
         "price" to this.price
+    )
+}
+
+fun CartItem.Companion.fromMap(map: Map<String, Any>): CartItem {
+    return CartItem(
+        id = map["id"] as? String ?: "",
+        dishId = map["dishId"] as? String ?: "",
+        dishName = map["dishName"] as? String ?: "",
+        quantity = (map["quantity"] as? Long)?.toInt() ?: 1,
+        note = map["note"] as? String ?: "",
+        imageUrl = map["imageUrl"] as? String,
+        toppings = (map["toppings"] as? Map<String, Map<String, Any>>)?.mapValues {
+            ToppingSelection.fromMap(it.value)
+        } ?: emptyMap(),
+        unitPrice = map["unitPrice"] as? Double ?: 0.0,
+        totalPrice = map["totalPrice"] as? Double ?: 0.0
+    )
+}
+
+fun ToppingSelection.Companion.fromMap(map: Map<String, Any>): ToppingSelection {
+    return ToppingSelection(
+        name = map["name"] as? String ?: "",
+        quantity = (map["quantity"] as? Long)?.toInt() ?: 1,
+        price = map["price"] as? Double ?: 0.0
     )
 }

@@ -29,6 +29,7 @@ data class Order(
     val readyTime: Timestamp? = null,
     val servedTime: Timestamp? = null,
     val completedTime: Timestamp? = null,
+    val cancelledTime: Timestamp? = null,
     val qrData: String? = null
 ) : Parcelable
 
@@ -56,7 +57,6 @@ fun Order.toMap(): Map<String, Any?> {
         "tableId" to this.tableId,
         "tableName" to this.tableName,
         "status" to this.status,
-        "createdAt" to this.createdAt,
         "cartItems" to this.cartItems.map { it.toMap() }, // Chuyển đổi CartItem sang Map
         "originalTotalPrice" to this.originalTotalPrice,
         "discountCode" to this.discountCode,
@@ -64,10 +64,6 @@ fun Order.toMap(): Map<String, Any?> {
         "finalTotalPrice" to this.finalTotalPrice,
         "paymentMethod" to this.paymentMethod,
         "paymentStatus" to this.paymentStatus,
-        "cookingStartTime" to this.cookingStartTime,
-        "readyTime" to this.readyTime,
-        "servedTime" to this.servedTime,
-        "completedTime" to this.completedTime,
         "qrData" to this.qrData
     )
 }
