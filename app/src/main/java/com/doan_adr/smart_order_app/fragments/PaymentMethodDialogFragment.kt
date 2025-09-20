@@ -46,7 +46,6 @@ class PaymentMethodDialogFragment : DialogFragment() {
         view.findViewById<Button>(R.id.payment_online_button).setOnClickListener {
             // Gọi phương thức trong Activity cha và truyền phương thức thanh toán là "online"
             listener?.onPaymentSelected("online")
-            dismiss() // Đóng DialogFragment
         }
     }
 

@@ -136,9 +136,23 @@ class OrderTrackingActivity : AppCompatActivity() {
     private fun setupButtonListeners() {
         // Nút Gọi nhân viên không cần thay đổi
         callStaffButton.setOnClickListener {
-            val phoneNumber = "tel:123456789"
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse(phoneNumber))
-            startActivity(intent)
+            lifecycleScope.launch {
+                try {
+                    // Lấy orderId từ intent
+                    val orderId = intent.getStringExtra("orderId")
+
+                    if (orderId != null) {
+                        // Gửi yêu cầu gọi nhân viên lên hệ thống
+                        databaseManager.sendStaffRequest(orderId, "call_staff")
+                        Toast.makeText(this@OrderTrackingActivity, "Đã gửi yêu cầu gọi nhân viên. Vui lòng chờ trong giây lát.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this@OrderTrackingActivity, "Lỗi: Không tìm thấy mã đơn hàng.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e("OrderTrackingActivity", "Lỗi khi gọi nhân viên: ${e.message}", e)
+                    Toast.makeText(this@OrderTrackingActivity, "Không thể gửi yêu cầu. Vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         cancelOrderButton.setOnClickListener {

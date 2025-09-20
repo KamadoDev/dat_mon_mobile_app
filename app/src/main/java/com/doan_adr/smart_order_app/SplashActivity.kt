@@ -1,5 +1,6 @@
 package com.doan_adr.smart_order_app
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -13,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.net.UnknownHostException
 
+@SuppressLint("CustomSplashScreen")
 class SplashActivity : AppCompatActivity() {
 
     private val databaseManager = FirebaseDatabaseManager()
@@ -30,7 +32,8 @@ class SplashActivity : AppCompatActivity() {
                 // Chờ hàm này hoàn thành
                 // databaseManager.createMockData()
                 // Sau đó mới chuyển màn hình
-                navigateToTableSelection()
+                // navigateToTableSelection()
+                navigateToRoleSelection()
             } catch (e: Exception) {
                 Log.e("SplashActivity", "Lỗi khi tạo dữ liệu mẫu: ${e.message}")
                 // Phân tích lỗi cụ thể
@@ -38,13 +41,20 @@ class SplashActivity : AppCompatActivity() {
                     showNetworkErrorDialog()
                 } else {
                     // Nếu là lỗi khác, vẫn chuyển màn hình hoặc xử lý khác
-                    navigateToTableSelection()
+                    //navigateToTableSelection()
+                    navigateToRoleSelection()
                 }
             }
         }
     }
 
     private fun navigateToTableSelection() {
+        val intent = Intent(this, TableSelectionActivity::class.java)
+        startActivity(intent)
+        finish()
+    }
+
+    private fun navigateToRoleSelection() {
         val intent = Intent(this, TableSelectionActivity::class.java)
         startActivity(intent)
         finish()

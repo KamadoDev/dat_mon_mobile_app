@@ -36,6 +36,12 @@
 
         <activity android:name=".OrderTrackingActivity" />
 
+        <activity android:name=".RoleSelectionActivity" />
+
+        <activity android:name=".ChefActivity" />
+
+<!--        <activity android:name=".ManagerActivity" />-->
+
         <meta-data
             android:name="preloaded_fonts"
             android:resource="@array/preloaded_fonts" />

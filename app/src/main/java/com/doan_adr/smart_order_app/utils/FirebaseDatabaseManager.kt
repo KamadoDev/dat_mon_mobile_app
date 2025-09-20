@@ -450,11 +450,57 @@ class FirebaseDatabaseManager {
         Log.d("FirebaseDatabaseManager", "Đơn hàng $orderId đã được thanh toán và hoàn thành. Bàn $tableId đã được trả về trạng thái trống.")
     }
 
+    /**
+     * Lắng nghe các đơn hàng theo trạng thái và cập nhật theo thời gian thực.
+     * @param status Trạng thái của đơn hàng cần lắng nghe (ví dụ: "pending", "cooking").
+     * @param onOrdersUpdated Callback được gọi khi danh sách đơn hàng được cập nhật.
+     * @return ListenerRegistration để hủy lắng nghe khi không cần nữa.
+     */
+    fun listenForOrdersByStatus(statuses: List<String>, onOrdersUpdated: (List<Order>) -> Unit): ListenerRegistration {
+        return db.collection("orders")
+            .whereIn("status", statuses)
+            .orderBy("createdAt") // Sắp xếp theo thời gian tạo để các đơn hàng mới xuất hiện đầu tiên
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("FirebaseDatabaseManager", "Lỗi khi lắng nghe đơn hàng theo trạng thái: $statuses", e)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val orders = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Order::class.java)
+                    }
+                    onOrdersUpdated(orders)
+                }
+            }
+    }
+
     suspend fun updateOrderStatus(orderId: String, newStatus: String) {
         try {
+            // Bước 1: Lấy trạng thái hiện tại của đơn hàng
+            val orderRef = db.collection("orders").document(orderId)
+            val snapshot = orderRef.get().await()
+            val currentStatus = snapshot.getString("status")
+
+            // Bước 2: Kiểm tra tính hợp lệ của việc chuyển trạng thái
+            val isTransitionValid = when (currentStatus) {
+                "pending", "pending_online" -> newStatus == "cooking"
+                "cooking" -> newStatus == "ready"
+                "ready" -> newStatus == "served"
+                "served" -> newStatus == "completed"
+                else -> false
+            }
+
+            if (!isTransitionValid) {
+                throw IllegalArgumentException("Không thể chuyển trạng thái từ '$currentStatus' sang '$newStatus'. Cập nhật không hợp lệ.")
+            }
+
+            // Bước 3: Nếu hợp lệ, tiến hành cập nhật bằng batch
+            val batch = db.batch()
+
             val updates = hashMapOf<String, Any>(
                 "status" to newStatus
             )
+
 
             when (newStatus) {
                 "cooking" -> {
@@ -465,21 +511,34 @@ class FirebaseDatabaseManager {
                 }
                 "served" -> {
                     updates["servedTime"] = FieldValue.serverTimestamp()
+
+                    // Cập nhật trạng thái bàn thành "available" và "currentOrderId" thành null
+                    val tableId = snapshot.getString("tableId")
+                    if (tableId != null) {
+                        val tableRef = db.collection("tables").document(tableId)
+                        val resetTableUpdates = hashMapOf(
+                            "status" to "available",
+                            "currentOrderId" to FieldValue.delete() // Xóa trường dữ liệu
+                        )
+                        batch.update(tableRef, resetTableUpdates as Map<String, Any>)
+                    }
                 }
                 "completed" -> {
                     updates["completedTime"] = FieldValue.serverTimestamp()
                 }
             }
 
-            db.collection("orders").document(orderId)
-                .update(updates)
-                .await()
+            // Cập nhật trạng thái đơn hàng trong batch
+            batch.update(orderRef, updates as Map<String, Any>)
 
-            Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái đơn hàng $orderId thành '$newStatus'")
+            // Thực hiện tất cả các cập nhật một cách nguyên tử
+            batch.commit().await()
+
+            Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái đơn hàng $orderId từ '$currentStatus' thành '$newStatus'")
 
         } catch (e: Exception) {
             Log.e("FirebaseDatabaseManager", "Lỗi khi cập nhật trạng thái đơn hàng: ${e.message}", e)
-            // Xử lý lỗi tại đây nếu cần
+            throw e
         }
     }
 
@@ -489,6 +548,52 @@ class FirebaseDatabaseManager {
             Log.d("FirebaseDatabaseManager", "Đã cập nhật orderId ${orderId} cho bàn ${tableId} thành công.")
         } catch (e: Exception) {
             Log.e("FirebaseDatabaseManager", "Lỗi khi cập nhật orderId cho bàn: ${e.message}")
+            throw e
+        }
+    }
+
+    suspend fun updatePaymentStatus(orderId: String, newStatus: String) {
+        try {
+            val updates = hashMapOf<String, Any>(
+                "paymentStatus" to newStatus,
+                "paymentTime" to FieldValue.serverTimestamp() // Thêm thời gian thanh toán
+            )
+
+            db.collection("orders").document(orderId)
+                .update(updates)
+                .await()
+
+            Log.d("FirebaseDatabaseManager", "Đã cập nhật trạng thái thanh toán đơn hàng $orderId thành '$newStatus'")
+
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi cập nhật trạng thái thanh toán: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun sendStaffRequest(orderId: String, requestType: String) {
+        try {
+            val orderRef = db.collection("orders").document(orderId)
+            val snapshot = orderRef.get().await()
+
+            val tableId = snapshot.getString("tableId")
+
+            if (tableId != null) {
+                val requestData = hashMapOf(
+                    "orderId" to orderId,
+                    "tableId" to tableId,
+                    "requestType" to requestType,
+                    "timestamp" to FieldValue.serverTimestamp(),
+                    "isHandled" to false
+                )
+
+                db.collection("staff_requests").add(requestData).await()
+                Log.d("FirebaseDatabaseManager", "Đã gửi yêu cầu '$requestType' cho bàn $tableId")
+            } else {
+                throw IllegalArgumentException("Không tìm thấy tableId cho đơn hàng $orderId")
+            }
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi gửi yêu cầu cho nhân viên: ${e.message}", e)
             throw e
         }
     }

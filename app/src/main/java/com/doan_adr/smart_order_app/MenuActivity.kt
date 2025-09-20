@@ -21,8 +21,10 @@ import com.doan_adr.smart_order_app.Models.Order
 import com.doan_adr.smart_order_app.adapters.MenuAdapter
 import com.doan_adr.smart_order_app.fragments.CartDialogFragment
 import com.doan_adr.smart_order_app.fragments.DishDetailDialogFragment
+import com.doan_adr.smart_order_app.fragments.OnlinePaymentDialogFragment
 import com.doan_adr.smart_order_app.fragments.PaymentMethodDialogFragment
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.tabs.TabLayout
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
@@ -54,13 +56,12 @@ class MenuActivity : AppCompatActivity(),
     private var finalDiscountCode: String? = null
     private var finalDiscountValue: Double = 0.0
     private var finalTotalPrice: Double = 0.0
-
     private var isOrderCreated = false
-
     private var dishesListener: ListenerRegistration? = null
     private var categoriesListener: ListenerRegistration? = null
-
     private var allDishes: List<Dish> = emptyList()
+    private lateinit var fabCart: ExtendedFloatingActionButton
+    private lateinit var fabCartBadgeCount: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,7 +103,17 @@ class MenuActivity : AppCompatActivity(),
                 handleBackPress()
             }
         })
+
+        fabCart = findViewById(R.id.fab_cart)
+        fabCartBadgeCount = findViewById(R.id.fab_cart_badge_count)
+        fabCart.setOnClickListener {
+            showCartDialog() // Gọi phương thức chung
+        }
+
     }
+
+
+
 
     override fun onResume() {
         super.onResume()
@@ -146,12 +157,19 @@ class MenuActivity : AppCompatActivity(),
         return true
     }
 
+    /**
+     * Mở CartDialogFragment để hiển thị giỏ hàng.
+     */
+    private fun showCartDialog() {
+        val dialog = CartDialogFragment.newInstance(ArrayList(cartItems))
+        dialog.show(supportFragmentManager, "CartDialog")
+        Toast.makeText(this, "Mở giỏ hàng", Toast.LENGTH_SHORT).show()
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_cart -> {
-                val dialog = CartDialogFragment.newInstance(ArrayList(cartItems))
-                dialog.show(supportFragmentManager, "CartDialog")
-                Toast.makeText(this, "Mở giỏ hàng", Toast.LENGTH_SHORT).show()
+                showCartDialog() // Gọi phương thức chung
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -203,33 +221,41 @@ class MenuActivity : AppCompatActivity(),
 
     private fun updateCartIconBadge() {
         val cartCount = cartItems.sumOf { it.quantity }
+        // Khai báo một danh sách chứa cả hai TextView của badge
+        val badgeTextViews = listOf(cartBadgeCount, fabCartBadgeCount)
+
         if (cartCount > 0) {
-            cartBadgeCount.text = if (cartCount > 99) "99+" else cartCount.toString()
-            if (cartBadgeCount.visibility != View.VISIBLE) {
-                cartBadgeCount.apply {
-                    visibility = View.VISIBLE
-                    alpha = 0f
-                    scaleX = 0f
-                    scaleY = 0f
-                    animate()
-                        .alpha(1f)
-                        .scaleX(1f)
-                        .scaleY(1f)
-                        .setDuration(200)
-                        .start()
+            val countText = if (cartCount > 99) "99+" else cartCount.toString()
+            badgeTextViews.forEach { badge ->
+                badge.text = countText
+                if (badge.visibility != View.VISIBLE) {
+                    badge.apply {
+                        visibility = View.VISIBLE
+                        alpha = 0f
+                        scaleX = 0f
+                        scaleY = 0f
+                        animate()
+                            .alpha(1f)
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(200)
+                            .start()
+                    }
                 }
             }
         } else {
-            if (cartBadgeCount.visibility != View.GONE) {
-                cartBadgeCount.animate()
-                    .alpha(0f)
-                    .scaleX(0f)
-                    .scaleY(0f)
-                    .setDuration(200)
-                    .withEndAction {
-                        cartBadgeCount.visibility = View.GONE
-                    }
-                    .start()
+            badgeTextViews.forEach { badge ->
+                if (badge.visibility != View.GONE) {
+                    badge.animate()
+                        .alpha(0f)
+                        .scaleX(0f)
+                        .scaleY(0f)
+                        .setDuration(200)
+                        .withEndAction {
+                            badge.visibility = View.GONE
+                        }
+                        .start()
+                }
             }
         }
     }
@@ -349,22 +375,37 @@ class MenuActivity : AppCompatActivity(),
             paymentStatus = if (method == "cash") "pending" else "pending_online",
             status = if (method == "cash") "pending" else "pending_online"
         )
-
-        lifecycleScope.launch {
-            try {
-                // Lưu đơn hàng vào Firestore
-                databaseManager.createOrder(newOrder)
-
-                Toast.makeText(this@MenuActivity, "Đơn hàng đã được đặt thành công!", Toast.LENGTH_LONG).show()
-                val intent = Intent(this@MenuActivity, OrderTrackingActivity::class.java).apply {
-                    putExtra("orderId", newOrder.id)
+        if (method == "online"){
+            // Tạo đơn hàng trên Firestore trước khi hiển thị dialog thanh toán
+            lifecycleScope.launch {
+                try {
+                    databaseManager.createOrder(newOrder)
+                    // Hiển thị dialog thanh toán trực tuyến
+                    OnlinePaymentDialogFragment.newInstance(newOrder).show(supportFragmentManager, "OnlinePaymentDialogFragment")
+                } catch (e: Exception) {
+                    Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
+                    Toast.makeText(this@MenuActivity, "Có lỗi xảy ra khi tạo đơn hàng, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
                 }
-                startActivity(intent)
-                finish()
-            } catch (e: Exception) {
-                Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
-                Toast.makeText(this@MenuActivity, "Có lỗi xảy ra, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            lifecycleScope.launch {
+                try {
+                    // Lưu đơn hàng vào Firestore
+                    databaseManager.createOrder(newOrder)
+
+                    Toast.makeText(this@MenuActivity, "Đơn hàng đã được đặt thành công!", Toast.LENGTH_LONG).show()
+                    val intent = Intent(this@MenuActivity, OrderTrackingActivity::class.java).apply {
+                        putExtra("orderId", newOrder.id)
+                    }
+                    startActivity(intent)
+                    finish()
+                } catch (e: Exception) {
+                    Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
+                    Toast.makeText(this@MenuActivity, "Có lỗi xảy ra, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
+
+
     }
 }
