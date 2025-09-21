@@ -38,7 +38,8 @@
 
         <activity android:name=".RoleSelectionActivity" />
 
-        <activity android:name=".ChefActivity" />
+        <activity android:name=".ChefDashboardActivity" />
+        <activity android:name=".LoginActivity" />
 
 <!--        <activity android:name=".ManagerActivity" />-->
 

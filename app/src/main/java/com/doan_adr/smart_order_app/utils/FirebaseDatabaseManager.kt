@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.WriteBatch
 import kotlinx.coroutines.tasks.await
@@ -15,11 +16,18 @@ import java.util.Date
 class FirebaseDatabaseManager {
     private val db = FirebaseFirestore.getInstance()
 
-    // Biến để lưu trữ cache trong bộ nhớ
+    // Cache để lưu trữ dữ liệu tạm thời trong bộ nhớ
     private var cachedDishes: List<Dish>? = null
     private var cachedCategories: List<Category>? = null
     private val cachedToppings = mutableMapOf<String, List<Topping>>()
 
+    // MARK: - Quản lý Dữ liệu Mock
+    // -------------------------------------------------------------------------------------------------
+
+    /**
+     * Tạo dữ liệu mẫu cho ứng dụng (món ăn, danh mục, topping) nếu chưa có.
+     * Chạy khi ứng dụng khởi động lần đầu.
+     */
     suspend fun createMockData() {
         Log.d("FirebaseDatabaseManager", "Đang tạo dữ liệu mẫu...")
 
@@ -48,6 +56,7 @@ class FirebaseDatabaseManager {
         val discounts = createMockDiscounts()
         addCollectionData("tables", tables)
         addCollectionData("discounts", discounts)
+
 
         Log.d("FirebaseDatabaseManager", "Tạo dữ liệu mẫu hoàn tất.")
     }
@@ -271,7 +280,6 @@ class FirebaseDatabaseManager {
             }
     }
 
-    // CATEGORIES
     private fun createMockDiscounts(): List<Map<String, Any?>> {
         return listOf(
             Discount(
@@ -300,6 +308,7 @@ class FirebaseDatabaseManager {
         }
     }
 
+    // CATEGORIES
     private fun createMockCategories(): List<Map<String, Any?>> {
         return listOf(
             Category(name = "Món chính", imageUrl = "https://example.com/main_icon.png").toMap(),
@@ -405,7 +414,6 @@ class FirebaseDatabaseManager {
         Log.d("FirebaseDatabaseManager", "Đơn hàng $orderId đã được hủy. Bàn $tableId đã được trả về trạng thái trống.")
     }
 
-    // Trong class FirebaseDatabaseManager
     suspend fun updatePaymentAndCompletion(orderId: String) {
         val db = FirebaseFirestore.getInstance()
         val batch: WriteBatch = db.batch()
@@ -456,21 +464,17 @@ class FirebaseDatabaseManager {
      * @param onOrdersUpdated Callback được gọi khi danh sách đơn hàng được cập nhật.
      * @return ListenerRegistration để hủy lắng nghe khi không cần nữa.
      */
-    fun listenForOrdersByStatus(statuses: List<String>, onOrdersUpdated: (List<Order>) -> Unit): ListenerRegistration {
+    fun listenForOrdersByStatus(status: String, onOrdersChanged: (List<Order>) -> Unit): ListenerRegistration {
         return db.collection("orders")
-            .whereIn("status", statuses)
-            .orderBy("createdAt") // Sắp xếp theo thời gian tạo để các đơn hàng mới xuất hiện đầu tiên
+            .whereEqualTo("status", status)
+            .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    Log.w("FirebaseDatabaseManager", "Lỗi khi lắng nghe đơn hàng theo trạng thái: $statuses", e)
+                    Log.w("FirebaseDatabaseManager", "Lỗi khi lắng nghe đơn hàng", e)
                     return@addSnapshotListener
                 }
-                if (snapshot != null) {
-                    val orders = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(Order::class.java)
-                    }
-                    onOrdersUpdated(orders)
-                }
+                val orders = snapshot?.documents?.mapNotNull { it.toObject(Order::class.java) } ?: emptyList()
+                onOrdersChanged(orders)
             }
     }
 
@@ -596,6 +600,44 @@ class FirebaseDatabaseManager {
             Log.e("FirebaseDatabaseManager", "Lỗi khi gửi yêu cầu cho nhân viên: ${e.message}", e)
             throw e
         }
+    }
+
+    suspend fun createMockAccounts() {
+        Log.d("FirebaseDatabaseManager", "Đang tạo tài khoản mock...")
+        val authManager = AuthManager()
+
+        // Danh sách tài khoản mẫu cần tạo
+        val mockAccounts = listOf(
+            mapOf("email" to "manager@example.com", "password" to "123456", "role" to "manager", "username" to "Quản lý A"),
+            mapOf("email" to "chef@example.com", "password" to "123456", "role" to "chef", "username" to "Đầu bếp B")
+        )
+
+        mockAccounts.forEach { account ->
+            val email = account["email"] as String
+            val password = account["password"] as String
+            val role = account["role"] as String
+            val username = account["username"] as String
+
+            try {
+                // Bước 1: Tạo tài khoản trong Firebase Authentication
+                val uid = authManager.createFirebaseUser(email, password)
+                if (uid != null) {
+                    // Bước 2: Lưu thông tin chi tiết vào Firestore
+                    val user = User(uid = uid, username = username, email = email, role = role)
+                    addDocumentWithCustomId("users", uid, user.toMap())
+                    Log.d("FirebaseDatabaseManager", "Đã tạo tài khoản mock thành công cho $email với UID: $uid")
+                }
+            } catch (e: Exception) {
+                Log.e("FirebaseDatabaseManager", "Lỗi khi tạo tài khoản mock: ${e.message}", e)
+            }
+        }
+    }
+
+    /**
+     * Hàm trợ giúp để thêm một document với ID tùy chỉnh.
+     */
+    suspend fun addDocumentWithCustomId(collectionPath: String, documentId: String, data: Map<String, Any?>) {
+        db.collection(collectionPath).document(documentId).set(data).await()
     }
 
 }

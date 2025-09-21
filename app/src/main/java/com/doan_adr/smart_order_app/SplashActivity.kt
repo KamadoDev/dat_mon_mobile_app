@@ -31,6 +31,7 @@ class SplashActivity : AppCompatActivity() {
             try {
                 // Chờ hàm này hoàn thành
                 // databaseManager.createMockData()
+                // databaseManager.createMockAccounts()
                 // Sau đó mới chuyển màn hình
                 // navigateToTableSelection()
                 navigateToRoleSelection()
@@ -48,14 +49,8 @@ class SplashActivity : AppCompatActivity() {
         }
     }
 
-    private fun navigateToTableSelection() {
-        val intent = Intent(this, TableSelectionActivity::class.java)
-        startActivity(intent)
-        finish()
-    }
-
     private fun navigateToRoleSelection() {
-        val intent = Intent(this, TableSelectionActivity::class.java)
+        val intent = Intent(this, RoleSelectionActivity::class.java)
         startActivity(intent)
         finish()
     }
