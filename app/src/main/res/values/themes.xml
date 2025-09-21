@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <dimen name="note_margin_left">16dp</dimen>
 
     <!-- Base theme -->
     <style name="Base.Theme.Adr_doan_smart_order_app" parent="Theme.Material3.DayNight.NoActionBar">
