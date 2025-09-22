@@ -5,32 +5,28 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    app:cardCornerRadius="16dp" app:cardElevation="6dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingBottom="12dp">
+        android:layout_height="wrap_content">
 
         <ImageView
             android:id="@+id/dish_image"
             android:layout_width="0dp"
             android:layout_height="120dp"
-            android:src="@drawable/pho_bo"
             android:scaleType="centerCrop"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            />
+            android:src="@drawable/pho_bo" />
 
         <TextView
             android:id="@+id/dish_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="12dp"
-            android:layout_marginEnd="12dp"
             android:ellipsize="end"
             android:fontFamily="@font/roboto_bold"
             android:maxLines="2"
@@ -72,12 +68,11 @@
             android:id="@+id/dish_description"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="8dp"
-            android:layout_marginEnd="12dp"
+            android:ellipsize="end"
             android:fontFamily="@font/roboto"
             android:maxLines="2"
-            android:ellipsize="end"
             android:textColor="@android:color/darker_gray"
             android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -89,12 +84,11 @@
             android:id="@+id/dish_health_tips"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="8dp"
-            android:layout_marginEnd="12dp"
-            android:maxLines="2"
             android:ellipsize="end"
             android:fontFamily="@font/roboto_italic"
+            android:maxLines="2"
             android:textColor="@color/green_health"
             android:textSize="13sp"
             app:layout_constraintEnd_toEndOf="parent"

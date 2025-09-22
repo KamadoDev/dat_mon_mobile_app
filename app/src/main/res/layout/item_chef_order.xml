@@ -76,26 +76,24 @@
                 android:id="@+id/tv_chef_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Đầu bếp: "
                 android:textColor="@color/black"
                 android:textSize="14sp"
                 android:textStyle="italic"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                tools:text="Đầu bếp: Đầu bếp B" />
+                />
 
             <TextView
                 android:id="@+id/tv_chef_uid"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="UID: "
                 android:textColor="@color/gray"
                 android:textSize="12sp"
                 app:layout_constraintStart_toEndOf="@+id/tv_chef_name"
                 app:layout_constraintTop_toTopOf="@+id/tv_chef_name"
                 app:layout_constraintBottom_toBottomOf="@+id/tv_chef_name"
-                tools:text="UID: XYZ123" />
+                />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

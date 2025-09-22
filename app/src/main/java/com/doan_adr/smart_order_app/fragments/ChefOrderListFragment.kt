@@ -88,6 +88,9 @@ class ChefOrderListFragment : Fragment() {
                 val currentUser = authManager.getCurrentUser()
                 val chefId = currentUser?.uid
                 val chefName = currentUser?.username
+                // Log chefId và chefName để kiểm tra
+                Log.d("ChefOrderListFragment", "chefId: $chefId, chefName: $chefName")
+
                 // Sử dụng hàm updateOrderStatus đã được tối ưu của bạn
                 if (chefId != null && chefName != null) {
                     firebaseManager.updateOrderStatus(order.id, newStatus,

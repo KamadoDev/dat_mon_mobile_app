@@ -5,14 +5,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/light"
+    android:background="@drawable/bg_dish"
     tools:context=".MenuActivity">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#60000000" />
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/primary"
+        android:background="@android:color/transparent"
+        android:elevation="0dp"
         android:theme="@style/Theme.Adr_doan_smart_order_app.AppBarOverlay">
 
         <androidx.appcompat.widget.Toolbar
@@ -27,39 +33,42 @@
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/light"
+            android:background="@android:color/transparent"
             app:tabMode="scrollable"
             app:tabGravity="center"
-            app:tabSelectedTextColor="@color/primary"
-            app:tabIndicatorColor="@color/primary"
-            app:tabTextColor="@color/dark" />
+            app:tabSelectedTextColor="@color/white"
+            app:tabIndicatorColor="@color/white"
+            app:tabTextColor="@color/white" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/menu_recycler_view"
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="8dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        tools:listitem="@layout/item_dish" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:id="@+id/layout_fab"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_gravity="bottom|end"
-        android:layout_margin="16dp">
+        android:layout_margin="16dp"
+        tools:layout_editor_absoluteX="16dp"
+        tools:layout_editor_absoluteY="16dp">
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/fab_cart"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Giỏ hàng"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
             android:contentDescription="Xem giỏ hàng"
+            android:text="Giỏ hàng"
             android:textColor="@color/white"
+            app:backgroundTint="@color/primary"
             app:icon="@drawable/shopping_cart_24px"
             app:iconTint="@color/white"
-            app:backgroundTint="@color/primary"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -68,22 +77,21 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:background="@drawable/badge_circle"
+            android:elevation="6dp"
             android:gravity="center"
             android:text="0"
             android:textColor="@android:color/white"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:elevation="6dp"
             android:visibility="gone"
-            tools:visibility="visible"
             app:layout_constraintCircle="@id/fab_cart"
-            app:layout_constraintCircleRadius="32dp"
             app:layout_constraintCircleAngle="330"
-            app:layout_constraintTop_toTopOf="@id/fab_cart"
+            app:layout_constraintCircleRadius="32dp"
             app:layout_constraintEnd_toEndOf="@id/fab_cart"
             app:layout_constraintHorizontal_bias="1"
-            app:layout_constraintVertical_bias="0" />
-
+            app:layout_constraintTop_toTopOf="@id/fab_cart"
+            app:layout_constraintVertical_bias="0"
+            tools:visibility="visible" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@drawable/bg_food"
     tools:context=".RoleSelectionActivity">
 
     <TextView
@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="64dp"
         android:text="Chọn vai trò của bạn"
-        android:textColor="@color/black"
+        android:textColor="@color/white"
         android:textSize="28sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -38,7 +38,10 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            app:cardBackgroundColor="#CCFFFFFF"
+            app:cardCornerRadius="16dp"
+            >
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -71,7 +74,9 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            app:cardBackgroundColor="#CCFFFFFF"
+            app:cardCornerRadius="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -104,7 +109,10 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            app:cardBackgroundColor="#CCFFFFFF"
+            app:cardCornerRadius="16dp"
+            >
 
             <LinearLayout
                 android:layout_width="match_parent"

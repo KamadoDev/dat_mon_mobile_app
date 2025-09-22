@@ -39,4 +39,6 @@
     <color name="red">#F44336</color>
 
     <color name="tertiary">#FFDC3545</color>
+    <color name="transparent">#00000000</color>
+    <color name="red_close_button">#BA1A1A</color>
 </resources>

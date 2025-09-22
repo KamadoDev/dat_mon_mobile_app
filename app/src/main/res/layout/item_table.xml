@@ -8,8 +8,8 @@
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     app:cardCornerRadius="16dp"
+    app:cardBackgroundColor="#CCFFFFFF"
     app:cardElevation="6dp"
-    android:backgroundTint="@color/white"
     android:clickable="true"
     android:focusable="true"
     android:stateListAnimator="@xml/card_state_animator">
@@ -17,6 +17,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
         android:padding="16dp">
 
         <ImageView
@@ -36,8 +37,7 @@
             android:text="Bàn 1"
             android:textStyle="bold"
             android:textSize="20sp"
-            android:textColor="@color/dark"
-            app:layout_constraintStart_toEndOf="@id/status_icon"
+            android:textColor="@color/black" app:layout_constraintStart_toEndOf="@id/status_icon"
             app:layout_constraintTop_toTopOf="@id/status_icon"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toTopOf="@+id/order_id_text"
@@ -51,8 +51,7 @@
             android:layout_marginTop="4dp"
             android:text="Trống"
             android:textSize="14sp"
-            android:textColor="@color/gray"
-            app:layout_constraintStart_toEndOf="@id/status_icon"
+            android:textColor="@color/black" app:layout_constraintStart_toEndOf="@id/status_icon"
             app:layout_constraintTop_toBottomOf="@id/table_name"
             app:layout_constraintEnd_toEndOf="parent"
             tools:text="Đơn: ABC123DEF" />

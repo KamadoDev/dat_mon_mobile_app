@@ -3,8 +3,6 @@ package com.doan_adr.smart_order_app
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -12,91 +10,92 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
 import com.doan_adr.smart_order_app.Models.CartItem
 import com.doan_adr.smart_order_app.Models.Category
 import com.doan_adr.smart_order_app.Models.Dish
 import com.doan_adr.smart_order_app.Models.Order
-import com.doan_adr.smart_order_app.adapters.MenuAdapter
 import com.doan_adr.smart_order_app.fragments.CartDialogFragment
 import com.doan_adr.smart_order_app.fragments.DishDetailDialogFragment
+import com.doan_adr.smart_order_app.fragments.DishListFragment
 import com.doan_adr.smart_order_app.fragments.OnlinePaymentDialogFragment
 import com.doan_adr.smart_order_app.fragments.PaymentMethodDialogFragment
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.ArrayList
-import java.util.Calendar
-import java.util.Locale
-import java.util.Random
-import java.util.UUID
+import java.util.*
+import kotlin.collections.ArrayList
 
 class MenuActivity : AppCompatActivity(),
     DishDetailDialogFragment.OnCartItemAddedListener,
     CartDialogFragment.OnCartItemsUpdatedListener,
     PaymentMethodDialogFragment.OnPaymentSelectedListener {
 
+    // Properties for UI components
     private lateinit var toolbar: Toolbar
     private lateinit var tabLayout: TabLayout
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var cartBadgeCount: TextView
-    private val cartItems: MutableList<CartItem> = mutableListOf()
+    private lateinit var viewPager: ViewPager2
+    private lateinit var fabCart: ExtendedFloatingActionButton
+    private lateinit var fabCartBadgeCount: TextView
     private lateinit var tableId: String
     private lateinit var tableName: String
-    private lateinit var menuAdapter: MenuAdapter
-    private val databaseManager = FirebaseDatabaseManager()
 
-    // Thêm các biến mới để lưu trữ thông tin đơn hàng cuối cùng
+    // Data-related properties
+    private val cartItems: MutableList<CartItem> = mutableListOf()
+    private val databaseManager = FirebaseDatabaseManager()
+    private var isOrderCreated = false
+    private var allDishes: List<Dish> = emptyList()
+    private var categories: List<Category> = emptyList()
+
+    // Firestore listeners
+    private var dishesListener: ListenerRegistration? = null
+    private var categoriesListener: ListenerRegistration? = null
+
+    // Final order details
     private var finalOrderCartItems: ArrayList<CartItem> = ArrayList()
     private var finalOriginalTotalPrice: Double = 0.0
     private var finalDiscountCode: String? = null
     private var finalDiscountValue: Double = 0.0
     private var finalTotalPrice: Double = 0.0
-    private var isOrderCreated = false
-    private var dishesListener: ListenerRegistration? = null
-    private var categoriesListener: ListenerRegistration? = null
-    private var allDishes: List<Dish> = emptyList()
-    private lateinit var fabCart: ExtendedFloatingActionButton
-    private lateinit var fabCartBadgeCount: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_menu)
 
+        // Get data from intent
         tableId = intent.getStringExtra("tableId") ?: return
         tableName = intent.getStringExtra("tableName") ?: return
 
+        setupViews()
+        setupToolbar()
+        setupListeners()
+        fetchData()
+    }
+
+    private fun setupViews() {
         toolbar = findViewById(R.id.toolbar)
         tabLayout = findViewById(R.id.tabLayout)
-        recyclerView = findViewById(R.id.menu_recycler_view)
+        viewPager = findViewById(R.id.viewPager)
+        fabCart = findViewById(R.id.fab_cart)
+        fabCartBadgeCount = findViewById(R.id.fab_cart_badge_count)
+    }
 
+    private fun setupToolbar() {
         setSupportActionBar(toolbar)
         supportActionBar?.title = "Thực đơn $tableName"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
         toolbar.setNavigationOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+    }
 
-        menuAdapter = MenuAdapter(this, emptyList()) { dish ->
-            onDishSelected(dish)
-        }
-        recyclerView.layoutManager = GridLayoutManager(this, 2)
-        recyclerView.adapter = menuAdapter
-
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                val categoryId = tab?.tag as? String ?: "all"
-                Log.d("MenuActivity", "Đã chọn danh mục: $categoryId")
-                updateDishesForCategory(categoryId)
-            }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
+    private fun setupListeners() {
+        fabCart.setOnClickListener { showCartDialog() }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -104,21 +103,61 @@ class MenuActivity : AppCompatActivity(),
             }
         })
 
-        fabCart = findViewById(R.id.fab_cart)
-        fabCartBadgeCount = findViewById(R.id.fab_cart_badge_count)
-        fabCart.setOnClickListener {
-            showCartDialog() // Gọi phương thức chung
+        categoriesListener = databaseManager.addCategoriesListener { fetchedCategories ->
+            categories = fetchedCategories
+            setupViewPagerWithTabs()
         }
 
+        dishesListener = databaseManager.addDishesListener { fetchedDishes ->
+            allDishes = fetchedDishes
+            // This is handled by ViewPager's adapter, no manual update needed
+        }
+    }
+
+    private fun fetchData() {
+        // Data listeners are set up in setupListeners(),
+        // they will trigger and update the UI automatically.
+        // No manual data fetching is needed here.
+    }
+
+    private fun setupViewPagerWithTabs() {
+        val pagerAdapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = categories.size
+
+            override fun createFragment(position: Int): androidx.fragment.app.Fragment {
+                val category = categories[position]
+                val dishesForCategory = allDishes.filter { it.categoryId == category.id }
+                return DishListFragment.newInstance(dishesForCategory) { dish ->
+                    showDishDetailDialog(dish)
+                }
+            }
+        }
+        viewPager.adapter = pagerAdapter
+
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = categories[position].name
+        }.attach()
+    }
+
+    private fun showDishDetailDialog(dish: Dish) {
+        DishDetailDialogFragment.newInstance(dish).show(supportFragmentManager, "DishDetailDialog")
+    }
+
+    private fun showCartDialog() {
+        CartDialogFragment.newInstance(ArrayList(cartItems))
+            .show(supportFragmentManager, "CartDialog")
+        Toast.makeText(this, "Mở giỏ hàng", Toast.LENGTH_SHORT).show()
     }
 
     override fun onResume() {
         super.onResume()
+        // Re-attach listeners in case they were removed in onPause
         setupListeners()
     }
 
     override fun onPause() {
         super.onPause()
+        // Remove listeners to prevent memory leaks
         dishesListener?.remove()
         categoriesListener?.remove()
     }
@@ -137,42 +176,6 @@ class MenuActivity : AppCompatActivity(),
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_cart, menu)
-        val cartItem = menu?.findItem(R.id.action_cart)
-        val actionView = cartItem?.actionView
-
-        // Gán TextView từ layout tùy chỉnh vào biến
-        cartBadgeCount = actionView?.findViewById(R.id.cart_badge_count)!!
-
-        // Thiết lập sự kiện click cho toàn bộ actionView
-        actionView.setOnClickListener {
-            onOptionsItemSelected(cartItem)
-        }
-
-        updateCartIconBadge()
-        return true
-    }
-
-    /**
-     * Mở CartDialogFragment để hiển thị giỏ hàng.
-     */
-    private fun showCartDialog() {
-        val dialog = CartDialogFragment.newInstance(ArrayList(cartItems))
-        dialog.show(supportFragmentManager, "CartDialog")
-        Toast.makeText(this, "Mở giỏ hàng", Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_cart -> {
-                showCartDialog() // Gọi phương thức chung
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
     override fun onCartItemAdded(cartItem: CartItem) {
         val existingItem = cartItems.find {
             it.dishId == cartItem.dishId && it.toppings == cartItem.toppings && it.note == cartItem.note
@@ -186,7 +189,6 @@ class MenuActivity : AppCompatActivity(),
             cartItems.add(cartItem)
             Toast.makeText(this, "Đã thêm món ${cartItem.dishName} vào giỏ", Toast.LENGTH_SHORT).show()
         }
-
         updateCartIconBadge()
         Log.d("MenuActivity", "Giỏ hàng hiện có: ${cartItems.size} món.")
     }
@@ -204,95 +206,47 @@ class MenuActivity : AppCompatActivity(),
         discountValue: Double,
         finalTotalPrice: Double
     ) {
-        // Lưu trữ các giá trị cuối cùng
         this.finalOrderCartItems = cartItems
         this.finalOriginalTotalPrice = originalTotalPrice
         this.finalDiscountCode = discountCode
         this.finalDiscountValue = discountValue
         this.finalTotalPrice = finalTotalPrice
 
-        // Mở DialogFragment thanh toán
-        val paymentDialogFragment = PaymentMethodDialogFragment.newInstance()
-        paymentDialogFragment.show(supportFragmentManager, "PaymentDialogFragment")
+        PaymentMethodDialogFragment.newInstance().show(supportFragmentManager, "PaymentDialogFragment")
     }
 
     private fun updateCartIconBadge() {
         val cartCount = cartItems.sumOf { it.quantity }
-        // Khai báo một danh sách chứa cả hai TextView của badge
-        val badgeTextViews = listOf(cartBadgeCount, fabCartBadgeCount)
-
         if (cartCount > 0) {
             val countText = if (cartCount > 99) "99+" else cartCount.toString()
-            badgeTextViews.forEach { badge ->
-                badge.text = countText
-                if (badge.visibility != View.VISIBLE) {
-                    badge.apply {
-                        visibility = View.VISIBLE
-                        alpha = 0f
-                        scaleX = 0f
-                        scaleY = 0f
-                        animate()
-                            .alpha(1f)
-                            .scaleX(1f)
-                            .scaleY(1f)
-                            .setDuration(200)
-                            .start()
-                    }
-                }
-            }
-        } else {
-            badgeTextViews.forEach { badge ->
-                if (badge.visibility != View.GONE) {
-                    badge.animate()
-                        .alpha(0f)
-                        .scaleX(0f)
-                        .scaleY(0f)
+            fabCartBadgeCount.text = countText
+            if (fabCartBadgeCount.visibility != View.VISIBLE) {
+                fabCartBadgeCount.apply {
+                    visibility = View.VISIBLE
+                    alpha = 0f
+                    scaleX = 0f
+                    scaleY = 0f
+                    animate()
+                        .alpha(1f)
+                        .scaleX(1f)
+                        .scaleY(1f)
                         .setDuration(200)
-                        .withEndAction {
-                            badge.visibility = View.GONE
-                        }
                         .start()
                 }
             }
-        }
-    }
-
-    private fun setupListeners() {
-        categoriesListener = databaseManager.addCategoriesListener { categories ->
-            updateCategoryTabs(categories)
-        }
-
-        dishesListener = databaseManager.addDishesListener { dishes ->
-            allDishes = dishes
-            val selectedTabTag = tabLayout.selectedTabPosition.let {
-                if (it != -1) tabLayout.getTabAt(it)?.tag as? String else "all"
-            } ?: "all"
-            updateDishesForCategory(selectedTabTag)
-        }
-    }
-
-    private fun updateCategoryTabs(categories: List<Category>) {
-        tabLayout.removeAllTabs()
-        val allTab = tabLayout.newTab()
-        allTab.text = "Tất cả"
-        allTab.tag = "all"
-        tabLayout.addTab(allTab)
-
-        categories.forEach { category ->
-            val tab = tabLayout.newTab()
-            tab.text = category.name
-            tab.tag = category.id
-            tabLayout.addTab(tab)
-        }
-    }
-
-    private fun updateDishesForCategory(categoryId: String) {
-        val filteredDishes = if (categoryId == "all") {
-            allDishes
         } else {
-            allDishes.filter { it.categoryId == categoryId }
+            if (fabCartBadgeCount.visibility != View.GONE) {
+                fabCartBadgeCount.animate()
+                    .alpha(0f)
+                    .scaleX(0f)
+                    .scaleY(0f)
+                    .setDuration(200)
+                    .withEndAction {
+                        fabCartBadgeCount.visibility = View.GONE
+                    }
+                    .start()
+            }
         }
-        menuAdapter.updateDishes(filteredDishes)
     }
 
     private fun handleBackPress() {
@@ -316,31 +270,12 @@ class MenuActivity : AppCompatActivity(),
         return this.tableId
     }
 
-    private fun onDishSelected(dish: Dish) {
-        val dialog = DishDetailDialogFragment.newInstance(dish)
-        dialog.show(supportFragmentManager, "DishDetailDialog")
-    }
-
-    /**
-     * Tạo mã đơn hàng theo quy tắc đã định nghĩa.
-     * [Mã Cửa Hàng]-[Ngày Tháng]-[Giờ Phút Giây]-[Số ngẫu nhiên]
-     *
-     * Ví dụ: SO-250918-164701-382
-     *
-     * SO: Mã viết tắt của cửa hàng ("Smart Order"). Bạn có thể thay đổi tùy ý.
-     *
-     * 250918: Ngày, tháng, năm (ngày 18 tháng 09 năm 2025).
-     *
-     * 164701: Giờ, phút, giây (16:47:01).
-     *
-     * 382: Ba chữ số ngẫu nhiên để đảm bảo không trùng lặp nếu có nhiều đơn hàng được đặt cùng một giây.
-     */
     private fun generateOrderId(): String {
-        val storePrefix = "QL" // Mã cửa hàng
+        val storePrefix = "QL"
         val now = Calendar.getInstance().time
         val dateFormat = SimpleDateFormat("yyMMdd", Locale.getDefault())
         val timeFormat = SimpleDateFormat("HHmmss", Locale.getDefault())
-        val randomSuffix = Random().nextInt(900) + 100 // Tạo số ngẫu nhiên từ 100 đến 999
+        val randomSuffix = Random().nextInt(900) + 100
 
         val date = dateFormat.format(now)
         val time = timeFormat.format(now)
@@ -348,19 +283,14 @@ class MenuActivity : AppCompatActivity(),
         return "$storePrefix-$date-$time-$randomSuffix"
     }
 
-    // Create order and navigate to OrderTrackingActivity
     override fun onPaymentSelected(method: String) {
-        // Kiểm tra xem các biến đã được gán giá trị từ onCheckout chưa
         if (finalOrderCartItems.isEmpty()) {
             Toast.makeText(this, "Không có sản phẩm nào trong giỏ hàng.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Tạo mã đơn hàng tùy chỉnh
-        val customOrderId = generateOrderId()
-
         val newOrder = Order(
-            id = customOrderId,
+            id = generateOrderId(),
             tableId = tableId,
             tableName = tableName,
             cartItems = finalOrderCartItems,
@@ -372,36 +302,25 @@ class MenuActivity : AppCompatActivity(),
             paymentStatus = if (method == "cash") "pending" else "pending_online",
             status = "pending"
         )
-        if (method == "online"){
-            // Tạo đơn hàng trên Firestore trước khi hiển thị dialog thanh toán
-            lifecycleScope.launch {
-                try {
-                    databaseManager.createOrder(newOrder)
-                    // Hiển thị dialog thanh toán trực tuyến
-                    OnlinePaymentDialogFragment.newInstance(newOrder).show(supportFragmentManager, "OnlinePaymentDialogFragment")
-                } catch (e: Exception) {
-                    Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
-                    Toast.makeText(this@MenuActivity, "Có lỗi xảy ra khi tạo đơn hàng, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        } else {
-            lifecycleScope.launch {
-                try {
-                    // Lưu đơn hàng vào Firestore
-                    databaseManager.createOrder(newOrder)
 
+        lifecycleScope.launch {
+            try {
+                databaseManager.createOrder(newOrder)
+                isOrderCreated = true // Đánh dấu đã tạo đơn hàng
+                if (method == "online") {
+                    OnlinePaymentDialogFragment.newInstance(newOrder).show(supportFragmentManager, "OnlinePaymentDialogFragment")
+                } else {
                     Toast.makeText(this@MenuActivity, "Đơn hàng đã được đặt thành công!", Toast.LENGTH_LONG).show()
                     val intent = Intent(this@MenuActivity, OrderTrackingActivity::class.java).apply {
                         putExtra("orderId", newOrder.id)
                     }
                     startActivity(intent)
                     finish()
-                } catch (e: Exception) {
-                    Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
-                    Toast.makeText(this@MenuActivity, "Có lỗi xảy ra, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: Exception) {
+                Log.e("MenuActivity", "Lỗi khi tạo đơn hàng: ${e.message}", e)
+                Toast.makeText(this@MenuActivity, "Có lỗi xảy ra khi tạo đơn hàng, vui lòng thử lại.", Toast.LENGTH_SHORT).show()
             }
         }
-
     }
 }
