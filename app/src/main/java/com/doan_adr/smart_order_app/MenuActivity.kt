@@ -75,7 +75,7 @@ class MenuActivity : AppCompatActivity(),
         recyclerView = findViewById(R.id.menu_recycler_view)
 
         setSupportActionBar(toolbar)
-        supportActionBar?.title = "Thực đơn bàn $tableName"
+        supportActionBar?.title = "Thực đơn $tableName"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         toolbar.setNavigationOnClickListener {
@@ -111,9 +111,6 @@ class MenuActivity : AppCompatActivity(),
         }
 
     }
-
-
-
 
     override fun onResume() {
         super.onResume()
@@ -365,7 +362,7 @@ class MenuActivity : AppCompatActivity(),
         val newOrder = Order(
             id = customOrderId,
             tableId = tableId,
-            tableName = "Bàn số $tableId",
+            tableName = tableName,
             cartItems = finalOrderCartItems,
             originalTotalPrice = finalOriginalTotalPrice,
             discountCode = finalDiscountCode,
@@ -373,7 +370,7 @@ class MenuActivity : AppCompatActivity(),
             finalTotalPrice = finalTotalPrice,
             paymentMethod = method,
             paymentStatus = if (method == "cash") "pending" else "pending_online",
-            status = if (method == "cash") "pending" else "pending_online"
+            status = "pending"
         )
         if (method == "online"){
             // Tạo đơn hàng trên Firestore trước khi hiển thị dialog thanh toán
@@ -405,7 +402,6 @@ class MenuActivity : AppCompatActivity(),
                 }
             }
         }
-
 
     }
 }

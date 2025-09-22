@@ -98,7 +98,7 @@ class FirebaseDatabaseManager {
     private fun createMockTables(): List<Map<String, Any?>> {
         return (1..10).map { i ->
             val status = if (i <= 7) "available" else "occupied"
-            Table(name = "Bàn $i", status = status, tableNumber = i, currentOrderId = null).toMap()
+            Table(id = i.toString(), name = "Bàn $i", status = status, tableNumber = i, currentOrderId = null).toMap()
         }
     }
 
@@ -200,17 +200,35 @@ class FirebaseDatabaseManager {
         }
     }
 
+    /**
+     * Lắng nghe thay đổi món ăn theo thời gian thực từ Firestore.
+     * Sẽ trả về dữ liệu đã cache ngay lập tức nếu có, sau đó cập nhật
+     * khi có thay đổi từ Firestore.
+     * @return ListenerRegistration để có thể hủy lắng nghe sau này.
+     */
     fun addDishesListener(onDishesChanged: (List<Dish>) -> Unit): ListenerRegistration {
+        // Bước 1: Trả về dữ liệu từ cache ngay lập tức nếu có
+        cachedDishes?.let {
+            Log.d("FirebaseDBManager", "Trả về món ăn từ cache ngay lập tức.")
+            onDishesChanged(it)
+        }
+
+        // Bước 2: Bắt đầu lắng nghe thay đổi theo thời gian thực
         return db.collection("dishes")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.w("FirebaseDBManager", "Lỗi lắng nghe món ăn: ", e)
+                    // Xử lý lỗi, có thể trả về danh sách trống
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
                     val dishes = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(Dish::class.java)?.copy(id = doc.id)
                     }
+
+                    // Bước 3: Cập nhật cache và thông báo thay đổi cho ứng dụng
+                    cachedDishes = dishes
+                    Log.d("FirebaseDBManager", "Đã nhận được cập nhật món ăn mới từ Firestore, tổng số: ${dishes.size}")
                     onDishesChanged(dishes)
                 }
             }
@@ -251,16 +269,30 @@ class FirebaseDatabaseManager {
         }
     }
 
+    /**
+     * Lắng nghe thay đổi toppings theo thời gian thực cho một món ăn cụ thể.
+     * @param toppingIds Danh sách ID của các topping cần lắng nghe.
+     * @param onToppingsChanged Callback được gọi khi có dữ liệu mới.
+     * @return ListenerRegistration để có thể hủy lắng nghe.
+     */
     fun addToppingsListener(toppingIds: List<String>, onToppingsChanged: (List<Topping>) -> Unit): ListenerRegistration {
-        // 1. Kiểm tra cache trước
+        // Tạo một khóa cache duy nhất từ danh sách ID topping
         val cacheKey = toppingIds.sorted().joinToString(",")
-        if (cachedToppings.containsKey(cacheKey)) {
-            Log.d("FirebaseDatabaseManager", "Trả về topping từ cache.")
-            onToppingsChanged(cachedToppings[cacheKey]!!)
-            // Vẫn lắng nghe real-time cho các lần sau nếu dữ liệu thay đổi
+
+        // Bước 1: Trả về dữ liệu từ cache ngay lập tức nếu có
+        cachedToppings[cacheKey]?.let {
+            Log.d("FirebaseDBManager", "Trả về toppings từ cache cho khóa: $cacheKey")
+            onToppingsChanged(it)
         }
 
-        // 2. Lắng nghe real-time từ Firestore
+        // Nếu danh sách toppingIds rỗng, không cần lắng nghe Firestore
+        if (toppingIds.isEmpty()) {
+            Log.d("FirebaseDBManager", "Không có ID toppings nào, bỏ qua lắng nghe Firestore.")
+            // Trả về một listener rỗng để tránh crash
+            return ListenerRegistration { }
+        }
+
+        // Bước 2: Lắng nghe thay đổi theo thời gian thực từ Firestore
         return db.collection("toppings")
             .whereIn(FieldPath.documentId(), toppingIds)
             .addSnapshotListener { snapshot, e ->
@@ -272,10 +304,11 @@ class FirebaseDatabaseManager {
                     val toppings = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(Topping::class.java)?.copy(id = doc.id)
                     }
-                    // 3. Cập nhật cache và gọi callback
+
+                    // Bước 3: Cập nhật cache và thông báo thay đổi cho ứng dụng
                     cachedToppings[cacheKey] = toppings
+                    Log.d("FirebaseDBManager", "Toppings được cập nhật từ Firestore cho khóa: $cacheKey")
                     onToppingsChanged(toppings)
-                    Log.d("FirebaseDatabaseManager", "Toppings được cập nhật từ Firestore.")
                 }
             }
     }
@@ -333,17 +366,36 @@ class FirebaseDatabaseManager {
         }
     }
 
+    /**
+     * Lắng nghe thay đổi danh mục theo thời gian thực từ Firestore.
+     * Sẽ trả về dữ liệu đã cache ngay lập tức nếu có, sau đó cập nhật
+     * khi có thay đổi từ Firestore.
+     * @return ListenerRegistration để có thể hủy lắng nghe sau này.
+     */
     fun addCategoriesListener(onCategoriesChanged: (List<Category>) -> Unit): ListenerRegistration {
+        // Bước 1: Trả về dữ liệu từ cache ngay lập tức nếu có
+        cachedCategories?.let {
+            Log.d("FirebaseDBManager", "Trả về danh mục từ cache ngay lập tức.")
+            onCategoriesChanged(it)
+        }
+
+        // Bước 2: Bắt đầu lắng nghe thay đổi theo thời gian thực
         return db.collection("categories")
+            .orderBy("name", Query.Direction.ASCENDING) // Sắp xếp theo tên để đảm bảo thứ tự
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.w("FirebaseDBManager", "Lỗi lắng nghe danh mục: ", e)
+                    // Xử lý lỗi, có thể trả về danh sách trống
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
                     val categories = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(Category::class.java)?.copy(id = doc.id)
                     }
+
+                    // Bước 3: Cập nhật cache và thông báo thay đổi cho ứng dụng
+                    cachedCategories = categories
+                    Log.d("FirebaseDBManager", "Đã nhận được cập nhật danh mục mới từ Firestore, tổng số: ${categories.size}")
                     onCategoriesChanged(categories)
                 }
             }
@@ -638,6 +690,34 @@ class FirebaseDatabaseManager {
      */
     suspend fun addDocumentWithCustomId(collectionPath: String, documentId: String, data: Map<String, Any?>) {
         db.collection(collectionPath).document(documentId).set(data).await()
+    }
+
+    fun addRealtimeOrdersListener(status: String, listener: (List<Order>) -> Unit): ListenerRegistration {
+        val query = db.collection("orders").whereEqualTo("status", status)
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+
+        return query.addSnapshotListener { snapshots, e ->
+            if (e != null) {
+                Log.e("FirebaseManager", "Lỗi lắng nghe đơn hàng: ${e.message}")
+                return@addSnapshotListener
+            }
+            val orders = snapshots?.toObjects(Order::class.java) ?: emptyList()
+            listener(orders)
+        }
+    }
+
+    suspend fun updateOrderStatusAndTimestamp(orderId: String, newStatus: String, timestampField: String, timestamp: Timestamp) {
+        try {
+            db.collection("orders").document(orderId)
+                .update(
+                    "status", newStatus,
+                    timestampField, timestamp
+                )
+                .await()
+            Log.d("FirebaseManager", "Cập nhật trạng thái và timestamp cho đơn hàng $orderId thành công")
+        } catch (e: Exception) {
+            Log.e("FirebaseManager", "Lỗi cập nhật trạng thái và timestamp: ${e.message}", e)
+        }
     }
 
 }

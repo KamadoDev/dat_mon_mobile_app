@@ -134,7 +134,6 @@ class DishDetailDialogFragment : DialogFragment() {
             if (dish.toppingIds.isNotEmpty()) {
                 toppingsLabel.visibility = View.VISIBLE
                 showToppingLoading(true)
-
                 toppingListener = databaseManager.addToppingsListener(dish.toppingIds) { toppings ->
                     toppingAdapter.updateToppings(toppings)
                     showToppingLoading(false)

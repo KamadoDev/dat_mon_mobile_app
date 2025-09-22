@@ -1,24 +1,31 @@
 package com.doan_adr.smart_order_app.fragments
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.doan_adr.smart_order_app.R
 import com.doan_adr.smart_order_app.adapters.ChefOrderAdapter
+import com.doan_adr.smart_order_app.Models.Order
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChefOrderListFragment : Fragment() {
 
     private var status: String? = null
     private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: ChefOrderAdapter
     private val firebaseManager = FirebaseDatabaseManager()
     private var listenerRegistration: ListenerRegistration? = null
+    private lateinit var orderAdapter: ChefOrderAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,26 +46,50 @@ class ChefOrderListFragment : Fragment() {
         recyclerView = view.findViewById(R.id.rv_orders)
         recyclerView.layoutManager = LinearLayoutManager(context)
 
-        // Khởi tạo adapter trống
-        adapter = ChefOrderAdapter(emptyList()) { order ->
-            // TODO: Xử lý sự kiện khi nhấn vào đơn hàng để xem chi tiết
+        // Khởi tạo Adapter với tham số onItemClick
+        orderAdapter = ChefOrderAdapter { order ->
+            handleOrderAction(order)
         }
-        recyclerView.adapter = adapter
+        recyclerView.adapter = orderAdapter
     }
 
     override fun onStart() {
         super.onStart()
-        // Bắt đầu lắng nghe đơn hàng từ Firebase
-        val statuses = listOf(status ?: "pending")
-        listenerRegistration = firebaseManager.listenForOrdersByStatus(statuses) { orders ->
-            adapter.updateOrders(orders)
+        status?.let {
+            listenerRegistration = firebaseManager.addRealtimeOrdersListener(it) { newOrders ->
+                // Sử dụng submitList để cập nhật danh sách một cách hiệu quả
+                orderAdapter.submitList(newOrders)
+                Log.d("ChefOrderListFragment", "Đã nhận ${newOrders.size} đơn hàng cho trạng thái $it")
+            }
         }
     }
 
     override fun onStop() {
         super.onStop()
-        // Dừng lắng nghe khi Fragment không còn hiển thị
         listenerRegistration?.remove()
+    }
+
+    private fun handleOrderAction(order: Order) {
+        val newStatus = when (order.status) {
+            "pending" -> "cooking"
+            "cooking" -> "ready"
+            "ready" -> "served"
+            else -> {
+                Log.w("ChefOrderListFragment", "Không thể chuyển trạng thái từ: ${order.status}")
+                return
+            }
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Sử dụng hàm updateOrderStatus đã được tối ưu của bạn
+                firebaseManager.updateOrderStatus(order.id, newStatus)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Lỗi cập nhật: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     companion object {
