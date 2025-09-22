@@ -44,7 +44,6 @@
             android:minWidth="0dp"
             android:text="Bắt đầu nấu"
             android:textColor="@color/white"
-            android:backgroundTint="@color/green"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -53,7 +52,7 @@
             tools:text="Bắt đầu nấu"/>
 
         <View
-            android:id="@+id/divider"
+            android:id="@+id/divider_top"
             android:layout_width="0dp"
             android:layout_height="1dp"
             android:background="@color/light_gray"
@@ -61,6 +60,54 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_order_time" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/chef_info_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/divider_top"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/tv_chef_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đầu bếp: "
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:textStyle="italic"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="Đầu bếp: Đầu bếp B" />
+
+            <TextView
+                android:id="@+id/tv_chef_uid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="UID: "
+                android:textColor="@color/gray"
+                android:textSize="12sp"
+                app:layout_constraintStart_toEndOf="@+id/tv_chef_name"
+                app:layout_constraintTop_toTopOf="@+id/tv_chef_name"
+                app:layout_constraintBottom_toBottomOf="@+id/tv_chef_name"
+                tools:text="UID: XYZ123" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <View
+            android:id="@+id/divider_bottom"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:background="@color/light_gray"
+            android:layout_marginTop="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/chef_info_container" />
 
         <LinearLayout
             android:id="@+id/ll_order_items"
@@ -70,7 +117,7 @@
             android:layout_marginTop="12dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/divider"
+            app:layout_constraintTop_toBottomOf="@id/divider_bottom"
             tools:itemCount="3"
             tools:ignore="MissingConstraints">
         </LinearLayout>

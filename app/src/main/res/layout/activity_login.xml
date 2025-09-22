@@ -11,11 +11,11 @@
         android:id="@+id/tv_login_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="120dp"
         android:text="Đăng nhập"
         android:textColor="@color/black"
         android:textSize="32sp"
         android:textStyle="bold"
-        android:layout_marginTop="120dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -26,13 +26,15 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:layout_marginTop="48dp"
+        android:background="@drawable/rounded_edittext_bg"
+        android:drawableStart="@drawable/person_24px"
+        android:drawablePadding="12dp"
         android:hint="Tên đăng nhập"
         android:inputType="text"
         android:padding="16dp"
-        android:background="@drawable/rounded_edittext_bg"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_login_title" />
+        app:layout_constraintTop_toBottomOf="@+id/tv_login_title" />
 
     <EditText
         android:id="@+id/et_password"
@@ -40,13 +42,15 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:layout_marginTop="16dp"
+        android:background="@drawable/rounded_edittext_bg"
+        android:drawableStart="@drawable/lock_24px"
+        android:drawablePadding="12dp"
         android:hint="Mật khẩu"
         android:inputType="textPassword"
         android:padding="16dp"
-        android:background="@drawable/rounded_edittext_bg"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/et_username" />
+        app:layout_constraintTop_toBottomOf="@+id/et_username" />
 
     <Button
         android:id="@+id/btn_login"
@@ -54,12 +58,23 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:layout_marginTop="32dp"
+        android:backgroundTint="@color/primary"
+        android:padding="16dp"
         android:text="Đăng nhập"
         android:textColor="@color/white"
-        android:padding="16dp"
-        android:backgroundTint="@color/primary"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/et_password" />
+        app:layout_constraintTop_toBottomOf="@+id/et_password" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_login" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

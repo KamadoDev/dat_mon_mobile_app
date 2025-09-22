@@ -11,6 +11,7 @@ data class User(
     val uid: String = "",
     val username: String = "",
     val email: String = "",
+    val avatar: String = "",
     val role: String = "", // "chef" hoặc "manager"
     @ServerTimestamp
     var createdAt: Timestamp? = null
@@ -21,6 +22,7 @@ fun User.toMap(): Map<String, Any> {
         "uid" to this.uid,
         "username" to this.username,
         "email" to this.email,
+        "avatar" to this.avatar,
         "role" to this.role,
     )
 }

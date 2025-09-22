@@ -30,7 +30,9 @@ data class Order(
     val servedTime: Timestamp? = null,
     val completedTime: Timestamp? = null,
     val cancelledTime: Timestamp? = null,
-    val qrData: String? = null
+    val qrData: String? = null,
+    val cookingChefId: String? = null, // UID đầu bếp
+    val cookingChefName: String? = null // lưu tên đầu bếp
 ) : Parcelable
 
 /**
@@ -64,7 +66,9 @@ fun Order.toMap(): Map<String, Any?> {
         "finalTotalPrice" to this.finalTotalPrice,
         "paymentMethod" to this.paymentMethod,
         "paymentStatus" to this.paymentStatus,
-        "qrData" to this.qrData
+        "qrData" to this.qrData,
+        "cookingChefId" to this.cookingChefId,
+        "cookingChefName" to this.cookingChefName
     )
 }
 

@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.doan_adr.smart_order_app.R
 import com.doan_adr.smart_order_app.adapters.ChefOrderAdapter
 import com.doan_adr.smart_order_app.Models.Order
+import com.doan_adr.smart_order_app.utils.AuthManager
 import com.doan_adr.smart_order_app.utils.FirebaseDatabaseManager
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,7 @@ class ChefOrderListFragment : Fragment() {
     private val firebaseManager = FirebaseDatabaseManager()
     private var listenerRegistration: ListenerRegistration? = null
     private lateinit var orderAdapter: ChefOrderAdapter
+    private val authManager = AuthManager()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,8 +84,20 @@ class ChefOrderListFragment : Fragment() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // Lấy thông tin đầu bếp hiện tại
+                val currentUser = authManager.getCurrentUser()
+                val chefId = currentUser?.uid
+                val chefName = currentUser?.username
                 // Sử dụng hàm updateOrderStatus đã được tối ưu của bạn
-                firebaseManager.updateOrderStatus(order.id, newStatus)
+                if (chefId != null && chefName != null) {
+                    firebaseManager.updateOrderStatus(order.id, newStatus,
+                        chefId as String?, chefName as String?
+                    )
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Không thể lấy thông tin đầu bếp.", Toast.LENGTH_SHORT).show()
+                    }
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Lỗi cập nhật: ${e.message}", Toast.LENGTH_SHORT).show()

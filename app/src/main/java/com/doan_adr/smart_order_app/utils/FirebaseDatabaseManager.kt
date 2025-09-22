@@ -530,7 +530,12 @@ class FirebaseDatabaseManager {
             }
     }
 
-    suspend fun updateOrderStatus(orderId: String, newStatus: String) {
+    suspend fun updateOrderStatus(
+        orderId: String,
+        newStatus: String,
+        cookingChefId: String? = null,
+        cookingChefName: String? = null
+    ) {
         try {
             // Bước 1: Lấy trạng thái hiện tại của đơn hàng
             val orderRef = db.collection("orders").document(orderId)
@@ -561,6 +566,13 @@ class FirebaseDatabaseManager {
             when (newStatus) {
                 "cooking" -> {
                     updates["cookingStartTime"] = FieldValue.serverTimestamp()
+                    // Thêm các trường mới cho đầu bếp
+                    if (cookingChefId != null) {
+                        updates["cookingChefId"] = cookingChefId
+                    }
+                    if (cookingChefName != null) {
+                        updates["cookingChefName"] = cookingChefName
+                    }
                 }
                 "ready" -> {
                     updates["readyTime"] = FieldValue.serverTimestamp()
