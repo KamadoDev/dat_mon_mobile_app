@@ -87,3 +87,15 @@ fun OrderItem.toMap(): Map<String, Any> {
         "totalPrice" to this.totalPrice
     )
 }
+
+fun CartItem.toOrderItem(): OrderItem {
+    return OrderItem(
+        dishId = this.dishId,
+        dishName = this.dishName,
+        quantity = this.quantity,
+        note = this.note,
+        toppings = this.toppings,
+        unitPrice = this.unitPrice,
+        totalPrice = this.totalPrice
+    )
+}

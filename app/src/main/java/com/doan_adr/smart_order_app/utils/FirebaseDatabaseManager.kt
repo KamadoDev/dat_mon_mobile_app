@@ -9,7 +9,9 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.WriteBatch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.sql.Timestamp
 import java.util.Date
 
@@ -20,6 +22,11 @@ class FirebaseDatabaseManager {
     private var cachedDishes: List<Dish>? = null
     private var cachedCategories: List<Category>? = null
     private val cachedToppings = mutableMapOf<String, List<Topping>>()
+
+    // Collection references
+    private val dishesCollection = db.collection("dishes")
+    private val categoriesCollection = db.collection("categories")
+    private val toppingsCollection = db.collection("toppings")
 
     // MARK: - Quản lý Dữ liệu Mock
     // -------------------------------------------------------------------------------------------------
@@ -200,6 +207,13 @@ class FirebaseDatabaseManager {
         }
     }
 
+    suspend fun addTopping(topping: Topping) {
+        db.collection("toppings")
+            .document(topping.id)
+            .set(topping)
+            .await()
+    }
+
     /**
      * Lắng nghe thay đổi món ăn theo thời gian thực từ Firestore.
      * Sẽ trả về dữ liệu đã cache ngay lập tức nếu có, sau đó cập nhật
@@ -241,6 +255,143 @@ class FirebaseDatabaseManager {
             Topping(name = "Thịt Bò Thêm", price = 15000.0).toMap()
         )
     }
+
+    // MARK: - Quản lý Người dùng
+    // -------------------------------------------------------------------------------------------------
+
+    /**
+     * Lấy danh sách người dùng theo vai trò (role).
+     * @param roles Một danh sách các vai trò cần lọc (ví dụ: "manager", "chef").
+     */
+    fun getUsersByRole(vararg roles: String): Query {
+        return db.collection("users").whereIn("role", roles.toList())
+    }
+
+    /**
+     * Thêm một người dùng mới vào Firestore.
+     * @param user Đối tượng User cần thêm.
+     */
+    suspend fun addUser(user: User) {
+        db.collection("users").document(user.uid).set(user).await()
+    }
+
+    /**
+     * Cập nhật thông tin của một người dùng.
+     * @param user Đối tượng User đã được cập nhật.
+     */
+    suspend fun updateUser(user: User) {
+        db.collection("users").document(user.uid).set(user).await()
+    }
+
+    /**
+     * Xóa một người dùng khỏi Firestore.
+     * @param userId ID của người dùng cần xóa.
+     */
+    suspend fun deleteUser(userId: String) {
+        db.collection("users").document(userId).delete().await()
+    }
+
+    // MARK: - Quản lý Món ăn và Danh mục
+    // -------------------------------------------------------------------------------------------------
+
+    /**
+     * Lấy danh sách tất cả các món ăn theo thời gian thực (real-time).
+     * @return Một đối tượng Query để lắng nghe thay đổi.
+     */
+    fun getRealtimeDishes(): Query {
+        return db.collection("dishes")
+    }
+
+    /**
+     * Thêm một món ăn mới và các topping liên quan vào Firestore.
+     * Sử dụng WriteBatch để đảm bảo tất cả các thao tác đều thành công hoặc thất bại.
+     */
+    suspend fun addDish(dish: Dish) {
+        val dishCollection = db.collection("dishes")
+
+        try {
+            // Sử dụng .set() để ghi đè hoặc tạo mới document với ID cụ thể
+            dishCollection.document(dish.id).set(dish).await()
+            // Hoặc sử dụng .add() để Firestore tự tạo ID
+            // dishCollection.add(dish).await()
+            // Tùy thuộc vào cách bạn quản lý ID, bạn có thể chọn một trong hai.
+            // Mã hiện tại của bạn đã tạo UUID, nên .set() là phù hợp.
+        } catch (e: Exception) {
+            // Ném lỗi để có thể xử lý ở Fragment gọi hàm này
+            throw e
+        }
+    }
+
+    /**
+     * Cập nhật thông tin món ăn.
+     * @param dish Đối tượng Dish đã được cập nhật.
+     */
+    suspend fun updateDish(dish: Dish) {
+        db.collection("dishes").document(dish.id).set(dish).await()
+    }
+
+    /**
+     * Xóa một món ăn.
+     * @param dishId ID của món ăn cần xóa.
+     */
+    suspend fun deleteDish(dishId: String) {
+        db.collection("dishes").document(dishId).delete().await()
+    }
+
+    /**
+     * Thêm một danh mục mới.
+     * @param category Đối tượng Category cần thêm.
+     */
+    suspend fun addCategory(category: Category) {
+        db.collection("categories").document(category.id).set(category).await()
+    }
+
+    /**
+     * Cập nhật thông tin danh mục.
+     * @param category Đối tượng Category đã được cập nhật.
+     */
+    suspend fun updateCategory(category: Category) {
+        db.collection("categories").document(category.id).set(category).await()
+    }
+
+    /**
+     * Xóa một danh mục.
+     * @param categoryId ID của danh mục cần xóa.
+     */
+    suspend fun deleteCategory(categoryId: String) {
+        db.collection("categories").document(categoryId).delete().await()
+    }
+
+    // MARK: - Quản lý Đơn hàng
+    // -------------------------------------------------------------------------------------------------
+    /**
+     * Lấy tất cả các đơn hàng theo thời gian thực, sắp xếp theo thời gian tạo mới nhất.
+     * @param listener Một hàm lambda để xử lý danh sách đơn hàng được trả về.
+     * @return Một ListenerRegistration để có thể hủy bỏ lắng nghe.
+     */
+    fun getRealtimeAllOrders(listener: (List<Order>) -> Unit): ListenerRegistration {
+        val query = db.collection("orders").orderBy("createdAt", Query.Direction.DESCENDING)
+
+        return query.addSnapshotListener { snapshots, e ->
+            if (e != null) {
+                Log.e("FirebaseDatabaseManager", "Lỗi lắng nghe đơn hàng: ${e.message}")
+                return@addSnapshotListener
+            }
+            val orders = snapshots?.toObjects(Order::class.java) ?: emptyList()
+            listener(orders)
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
 
     suspend fun getToppingsForDish(dish: Dish): List<Topping> {
         val toppingIds = dish.toppingIds
@@ -313,6 +464,44 @@ class FirebaseDatabaseManager {
             }
     }
 
+    /**
+     * Lấy danh sách Category từ Firestore.
+     * Hàm này luôn thực hiện truy vấn Firestore mà không sử dụng cache.
+     * @return Một danh sách các đối tượng Category.
+     */
+    suspend fun getCategories(): List<Category> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val snapshot = categoriesCollection.get().await()
+            val categories = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Category::class.java)?.copy(id = doc.id)
+            }
+            Log.d("FirebaseDatabaseManager", "Đã lấy ${categories.size} danh mục từ Firestore.")
+            categories
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi lấy danh mục: ${e.message}", e)
+            emptyList<Category>()
+        }
+    }
+
+    /**
+     * Lấy danh sách Topping từ Firestore.
+     * Hàm này luôn thực hiện truy vấn Firestore mà không sử dụng cache.
+     * @return Một danh sách các đối tượng Topping.
+     */
+    suspend fun getToppings(): List<Topping> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val snapshot = toppingsCollection.get().await()
+            val toppings = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Topping::class.java)?.copy(id = doc.id)
+            }
+            Log.d("FirebaseDatabaseManager", "Đã lấy ${toppings.size} toppings.")
+            toppings
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi khi lấy toppings: ${e.message}", e)
+            emptyList<Topping>()
+        }
+    }
+
     private fun createMockDiscounts(): List<Map<String, Any?>> {
         return listOf(
             Discount(
@@ -349,23 +538,6 @@ class FirebaseDatabaseManager {
             Category(name = "Tráng miệng", imageUrl = "https://example.com/dessert_icon.png").toMap(),
         )
     }
-
-    suspend fun getCategories(): List<Category> {
-        if (cachedCategories != null) {
-            Log.d("FirebaseDatabaseManager", "Trả về danh mục từ cache.")
-            return cachedCategories!!
-        }
-        return try {
-            val snapshot = db.collection("categories").get().await()
-            val categories = snapshot.documents.mapNotNull { doc -> doc.toObject(Category::class.java)?.copy(id = doc.id) }
-            cachedCategories = categories
-            categories
-        } catch (e: Exception) {
-            Log.e("FirebaseDatabaseManager", "Lỗi khi lấy danh mục: ${e.message}")
-            emptyList()
-        }
-    }
-
     /**
      * Lắng nghe thay đổi danh mục theo thời gian thực từ Firestore.
      * Sẽ trả về dữ liệu đã cache ngay lập tức nếu có, sau đó cập nhật
