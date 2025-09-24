@@ -113,6 +113,9 @@ class LoginActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     if (user != null) {
                         val requiredRole = intent.getStringExtra("user_role")
+                        // Log quyền
+                        Log.d("LoginActivity", "Quyền: ${user.role} - Yêu cầu: $requiredRole")
+                        // Kiểm tra quyền và chuyển hướng
                         if (user.role == requiredRole) {
                             Toast.makeText(this@LoginActivity, "Chào mừng ${user.username}", Toast.LENGTH_SHORT).show()
                             navigateToDashboard(user.role, user)

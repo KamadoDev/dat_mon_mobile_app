@@ -63,4 +63,10 @@ dependencies {
     // Firebase Authentication
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-auth")
+
+    // Thêm Firebase Storage
+    implementation("com.google.firebase:firebase-storage")
+    implementation("androidx.activity:activity-ktx:1.11.0")
+
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
 }

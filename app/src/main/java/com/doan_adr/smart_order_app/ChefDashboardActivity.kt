@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.doan_adr.smart_order_app.utils.AuthManager
 
+@Suppress("DEPRECATION")
 class ChefDashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityChefDashboardBinding
