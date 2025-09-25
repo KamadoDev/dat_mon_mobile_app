@@ -76,7 +76,7 @@ class LoginActivity : AppCompatActivity() {
                             authManager.signOut()
                         }
                     } else {
-                        Toast.makeText(this@LoginActivity, "Sai tên đăng nhập hoặc mật khẩu", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@LoginActivity, "Sai tên đăng nhập, mật khẩu hoặc tài khoản đã bị vô hiệu hóa.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -125,7 +125,7 @@ class LoginActivity : AppCompatActivity() {
                         }
                     } else {
                         authManager.signOut()
-                        Toast.makeText(this@LoginActivity, "Không thể tải dữ liệu người dùng. Vui lòng đăng nhập lại.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@LoginActivity, "Không thể tải dữ liệu người dùng. Tài khoản có thể đã bị vô hiệu hóa.", Toast.LENGTH_LONG).show()
                     }
                 }
             }

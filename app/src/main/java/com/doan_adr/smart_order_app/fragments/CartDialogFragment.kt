@@ -1,3 +1,4 @@
+// File: CartDialogFragment.kt
 package com.doan_adr.smart_order_app.fragments
 
 import android.os.Bundle
@@ -43,10 +44,8 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
     private var listener: OnCartItemsUpdatedListener? = null
     private var appliedDiscount: Discount? = null
 
-    // Thay đổi interface để truyền cả thông tin giảm giá và tổng tiền cuối cùng
     interface OnCartItemsUpdatedListener {
         fun onCartItemsUpdated(updatedItems: ArrayList<CartItem>)
-        // Thêm phương thức mới để xử lý việc đặt hàng
         fun onCheckout(
             cartItems: ArrayList<CartItem>,
             originalTotalPrice: Double,
@@ -77,11 +76,15 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         discountInfoTextView = view.findViewById(R.id.discount_info_text_view)
         subtotalPriceText = view.findViewById(R.id.subtotal_price_text)
 
-        val window = dialog?.window ?: return view
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, view).let { controller ->
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        // **Đoạn mã đã được di chuyển và tối ưu**
+        view.post {
+            val window = dialog?.window
+            if (window != null) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                val controller = WindowInsetsControllerCompat(window, view)
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
         }
 
         val toolbar: Toolbar = view.findViewById(R.id.cart_toolbar)
@@ -89,7 +92,6 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
 
         updateCartState()
         checkoutButton.setOnClickListener {
-            // Lấy thông tin cần thiết từ CartDialogFragment
             val originalTotal = cartItems.sumOf { it.totalPrice }
             var discountValue = 0.0
             var finalTotal = originalTotal
@@ -103,7 +105,6 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
                 finalTotal = originalTotal - discountValue
             }
 
-            // Gọi phương thức checkout mới trong Activity cha
             listener?.onCheckout(
                 cartItems,
                 originalTotal,
@@ -150,13 +151,25 @@ class CartDialogFragment : DialogFragment(), CartAdapter.OnItemActionListener {
         val databaseManager = FirebaseDatabaseManager()
         viewLifecycleOwner.lifecycleScope.launch {
             val discount = databaseManager.getDiscountByCode(code)
+
             if (discount != null) {
-                if (cartItems.sumOf { it.totalPrice } >= discount.minOrderValue) {
-                    appliedDiscount = discount
-                    updateTotalPrice()
-                    Toast.makeText(context, "Áp dụng mã giảm giá thành công!", Toast.LENGTH_SHORT).show()
+                if (discount.usageLimit > 0) {
+                    if (cartItems.sumOf { it.totalPrice } >= discount.minOrderValue) {
+                        appliedDiscount = discount
+                        updateTotalPrice()
+                        Toast.makeText(context, "Áp dụng mã giảm giá thành công!", Toast.LENGTH_SHORT).show()
+                        discount.id?.let {
+                            databaseManager.updateDiscountUsage(
+                                discountId = it,
+                                currentUsage = discount.usageLimit,
+                                currentTimesUsed = discount.timesUsed
+                            )
+                        }
+                    } else {
+                        Toast.makeText(context, "Đơn hàng chưa đủ điều kiện áp dụng mã này.", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
-                    Toast.makeText(context, "Đơn hàng chưa đủ điều kiện áp dụng mã này.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Mã giảm giá đã hết lượt sử dụng.", Toast.LENGTH_SHORT).show()
                 }
             } else {
                 Toast.makeText(context, "Mã giảm giá không hợp lệ.", Toast.LENGTH_SHORT).show()

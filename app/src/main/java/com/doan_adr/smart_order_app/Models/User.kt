@@ -13,6 +13,7 @@ data class User(
     val email: String = "",
     val avatar: String = "",
     val role: String = "", // "chef" hoặc "manager"
+    val isAccountEnabled: Boolean = true, // Thêm trường mới
     @ServerTimestamp
     var createdAt: Timestamp? = null
 ) : Parcelable
@@ -24,5 +25,6 @@ fun User.toMap(): Map<String, Any> {
         "email" to this.email,
         "avatar" to this.avatar,
         "role" to this.role,
+        "isAccountEnabled" to this.isAccountEnabled,
     )
 }

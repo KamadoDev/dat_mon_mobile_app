@@ -11,8 +11,7 @@ import com.doan_adr.smart_order_app.databinding.ItemEmployeeManagementBinding
 
 class EmployeeManagementAdapter(
     private val employees: MutableList<User>,
-    private val onEditClick: (User) -> Unit,
-    private val onDeleteClick: (User) -> Unit
+    private val onEditClick: (User) -> Unit
 ) : RecyclerView.Adapter<EmployeeManagementAdapter.EmployeeViewHolder>() {
 
     class EmployeeViewHolder(val binding: ItemEmployeeManagementBinding) : RecyclerView.ViewHolder(binding.root)
@@ -37,9 +36,8 @@ class EmployeeManagementAdapter(
             tvEmployeeName.text = employee.username
             tvEmployeeRole.text = "Vai trò: ${getRoleText(employee.role)}"
 
-            // Thiết lập sự kiện click cho các nút
+            // Thiết lập sự kiện click cho nút chỉnh sửa
             btnEdit.setOnClickListener { onEditClick(employee) }
-            btnDelete.setOnClickListener { onDeleteClick(employee) }
         }
     }
 
@@ -55,7 +53,7 @@ class EmployeeManagementAdapter(
         return when (role) {
             "chef" -> "Đầu bếp"
             "manager" -> "Quản lý"
-            else -> role
+            else -> "Không xác định"
         }
     }
 }

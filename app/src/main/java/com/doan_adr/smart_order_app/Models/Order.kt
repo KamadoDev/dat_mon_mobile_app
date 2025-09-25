@@ -15,7 +15,7 @@ data class Order(
     val id: String = UUID.randomUUID().toString(),
     val tableId: String = "",
     val tableName: String = "",
-    val status: String = "pending",
+    val status: String = "pending", // cooking - ready - served - completed - cancelled
     @ServerTimestamp
     var createdAt: Timestamp? = null,
     val cartItems: List<CartItem> = emptyList(), // Sử dụng CartItem từ file CartItem.kt

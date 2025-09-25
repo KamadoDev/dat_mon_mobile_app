@@ -22,44 +22,36 @@ class ManagerDashboardActivity : AppCompatActivity() {
         binding = ActivityManagerDashboardBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Lấy thông tin người dùng từ Intent
         val user = intent.getParcelableExtra<User>("user_object")
 
-        // Kiểm tra đối tượng user và các trường dữ liệu trước khi sử dụng
         if (user != null) {
-            // Hiển thị tên người dùng, nếu rỗng thì dùng giá trị mặc định
             binding.tvManagerName.text = if (user.username.isNotBlank()) user.username else "Quản Lý"
-
-            // Tải hình đại diện bằng Glide và xử lý trường hợp URL rỗng
             Glide.with(this)
                 .load(user.avatar)
                 .apply(RequestOptions.circleCropTransform())
-                .placeholder(R.drawable.person_24px) // Ảnh placeholder
-                .error(R.drawable.person_24px) // Ảnh lỗi
+                .placeholder(R.drawable.person_24px)
+                .error(R.drawable.person_24px)
                 .into(binding.ivManagerAvatar)
         } else {
-            // Trường hợp user là null (không được truyền qua Intent)
             binding.tvManagerName.text = "Quản Lý"
             Glide.with(this)
-                .load(R.drawable.person_24px) // Tải ảnh placeholder nếu không có user
+                .load(R.drawable.person_24px)
                 .apply(RequestOptions.circleCropTransform())
                 .into(binding.ivManagerAvatar)
         }
 
-        // Thiết lập ViewPager2 với Adapter
-        val tabTitles = listOf("Quản lý món ăn", "Quản lý nhân viên", "Theo dõi đơn hàng")
+        // Cập nhật danh sách tabTitles
+        val tabTitles = listOf("Quản lý bàn", "Quản lý món ăn", "Quản lý nhân viên", "Theo dõi đơn hàng", "Quản lý khuyến mãi", "Thống kê")
         val viewPager = binding.viewPager
         val tabLayout = binding.tabLayout
 
         val adapter = ManagerDashboardPagerAdapter(this, tabTitles)
         viewPager.adapter = adapter
 
-        // Kết nối TabLayout với ViewPager2
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             tab.text = tabTitles[position]
         }.attach()
 
-        // Thêm sự kiện click cho nút đăng xuất
         binding.btnLogout.setOnClickListener {
             authManager.signOut()
             navigateToRoleSelection()

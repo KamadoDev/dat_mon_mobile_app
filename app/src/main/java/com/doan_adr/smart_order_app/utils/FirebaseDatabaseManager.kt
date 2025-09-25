@@ -2,6 +2,9 @@ package com.doan_adr.smart_order_app.utils
 
 import android.util.Log
 import com.doan_adr.smart_order_app.Models.*
+import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,14 +12,20 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.WriteBatch
+import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.sql.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 
 class FirebaseDatabaseManager {
     private val db = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
+    // Khai báo và khởi tạo Firebase Firestore
+    private val firestore: FirebaseFirestore = Firebase.firestore
 
     // Cache để lưu trữ dữ liệu tạm thời trong bộ nhớ
     private var cachedDishes: List<Dish>? = null
@@ -275,22 +284,6 @@ class FirebaseDatabaseManager {
         db.collection("users").document(user.uid).set(user).await()
     }
 
-    /**
-     * Cập nhật thông tin của một người dùng.
-     * @param user Đối tượng User đã được cập nhật.
-     */
-    suspend fun updateUser(user: User) {
-        db.collection("users").document(user.uid).set(user).await()
-    }
-
-    /**
-     * Xóa một người dùng khỏi Firestore.
-     * @param userId ID của người dùng cần xóa.
-     */
-    suspend fun deleteUser(userId: String) {
-        db.collection("users").document(userId).delete().await()
-    }
-
     // MARK: - Quản lý Món ăn và Danh mục
     // -------------------------------------------------------------------------------------------------
 
@@ -515,7 +508,6 @@ class FirebaseDatabaseManager {
         )
     }
 
-    // Thêm hàm này vào class FirebaseDatabaseManager
     suspend fun getDiscountByCode(code: String): Discount? {
         return try {
             val snapshot = db.collection("discounts")
@@ -527,6 +519,101 @@ class FirebaseDatabaseManager {
         } catch (e: Exception) {
             Log.e("FirebaseDatabaseManager", "Lỗi khi lấy mã giảm giá: ${e.message}")
             null
+        }
+    }
+
+    /**
+     * Lấy các số liệu thống kê tổng quan (doanh thu, số đơn đã phục vụ).
+     * @return Map<String, Any> chứa "totalRevenue" và "totalOrders"
+     */
+    suspend fun getOverallStats(): Map<String, Any> = withContext(Dispatchers.IO) {
+        var totalRevenue = 0.0
+        var totalOrders = 0L
+
+        try {
+            val servedOrdersSnapshot = db.collection("orders")
+                .whereEqualTo("status", "served")
+                .get()
+                .await()
+
+            for (doc in servedOrdersSnapshot.documents) {
+                val order = doc.toObject(Order::class.java)
+                order?.let {
+                    totalRevenue += it.finalTotalPrice
+                    totalOrders += 1
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi lấy số liệu tổng quan: ${e.message}")
+            throw e
+        }
+        return@withContext mapOf("totalRevenue" to totalRevenue, "totalOrders" to totalOrders)
+    }
+
+    /**
+     * Lấy báo cáo doanh thu theo ngày bằng cách truy vấn và tổng hợp từ collection 'orders'.
+     * @param startDate Ngày bắt đầu của khoảng thời gian cần báo cáo.
+     * @param endDate Ngày kết thúc của khoảng thời gian cần báo cáo.
+     * @return Danh sách các đối tượng Report, được sắp xếp theo ngày.
+     */
+    suspend fun getDailyReports(startDate: Date?, endDate: Date?): List<Report> = withContext(Dispatchers.IO) {
+        try {
+            var query = db.collection("orders")
+                .whereEqualTo("status", "served")
+                .orderBy("servedTime", Query.Direction.ASCENDING)
+
+            // Lọc theo khoảng thời gian nếu có
+            if (startDate != null) {
+                query = query.whereGreaterThanOrEqualTo("servedTime", Timestamp(startDate))
+            }
+            if (endDate != null) {
+                val endCalendar = Calendar.getInstance()
+                endCalendar.time = endDate
+                endCalendar.add(Calendar.DATE, 1)
+                query = query.whereLessThan("servedTime", Timestamp(endCalendar.time))
+            }
+
+            val servedOrdersSnapshot = query.get().await()
+
+            val dailyReports = mutableMapOf<String, Report>()
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+            for (doc in servedOrdersSnapshot.documents) {
+                try {
+                    val order = doc.toObject(Order::class.java)
+                    order?.let {
+                        val servedTime = it.servedTime ?: return@let
+                        val dateString = dateFormat.format(servedTime.toDate())
+
+                        val report = dailyReports.getOrPut(dateString) {
+                            Report(date = servedTime, revenue = 0.0, orderCount = 0)
+                        }
+                        report.revenue += it.finalTotalPrice
+                        report.orderCount += 1
+                    }
+                } catch (e: Exception) {
+                    Log.e("FirebaseDatabaseManager", "Lỗi xử lý document ${doc.id}: ${e.message}")
+                }
+            }
+            return@withContext dailyReports.values.sortedBy { it.date }
+        } catch (e: Exception) {
+            Log.e("FirebaseDatabaseManager", "Lỗi truy vấn Firestore: ${e.message}")
+            throw e
+        }
+    }
+
+    // Thêm hàm này vào class FirebaseDatabaseManager
+    suspend fun updateDiscountUsage(discountId: String, currentUsage: Int, currentTimesUsed: Int) {
+        try {
+            db.collection("discounts").document(discountId)
+                .update(
+                    "usageLimit", currentUsage - 1,
+                    "timesUsed", currentTimesUsed + 1
+                )
+                .await()
+            Log.d("FirebaseManager", "Cập nhật lượt sử dụng mã khuyến mãi thành công cho: $discountId")
+        } catch (e: Exception) {
+            Log.e("FirebaseManager", "Lỗi cập nhật lượt sử dụng mã khuyến mãi: ${e.message}")
         }
     }
 
@@ -867,6 +954,158 @@ class FirebaseDatabaseManager {
                 Log.e("FirebaseDatabaseManager", "Lỗi khi tạo tài khoản mock: ${e.message}", e)
             }
         }
+    }
+
+
+    // Hàm thêm người dùng mới, bao gồm cả tạo tài khoản xác thực
+    suspend fun addUserWithAuth(user: User, password: String) {
+        try {
+            val authResult = auth.createUserWithEmailAndPassword(user.email, password).await()
+            val uid = authResult.user?.uid
+            if (uid != null) {
+                val userWithUid = user.copy(uid = uid)
+                db.collection("users").document(uid).set(userWithUid).await()
+            } else {
+                throw Exception("Không thể tạo tài khoản xác thực.")
+            }
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+
+    suspend fun updateUser(user: User) {
+        if (user.uid.isEmpty()) {
+            throw IllegalArgumentException("UID không thể rỗng khi cập nhật User.")
+        }
+        db.collection("users").document(user.uid).set(user).await()
+    }
+
+    // Sau đó, cập nhật hàm deleteUser như sau:
+    fun deleteUser(userId: String) {
+        // 1. Xóa tài liệu người dùng khỏi Firestore
+        firestore.collection("users").document(userId)
+            .delete()
+            .addOnSuccessListener {
+                Log.d("FirebaseManager", "Tài liệu người dùng đã được xóa khỏi Firestore.")
+            }
+            .addOnFailureListener { e ->
+                Log.w("FirebaseManager", "Lỗi khi xóa tài liệu người dùng khỏi Firestore.", e)
+            }
+
+        // 2. Xóa người dùng khỏi Firebase Authentication
+        // Lấy đối tượng người dùng hiện tại
+        val auth = FirebaseAuth.getInstance()
+        auth.currentUser?.delete()
+            ?.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("FirebaseManager", "Người dùng đã được xóa khỏi Authentication.")
+                } else {
+                    Log.w("FirebaseManager", "Lỗi khi xóa người dùng khỏi Authentication.", task.exception)
+                }
+            }
+    }
+
+    fun updateUserAccountStatus(userId: String, isEnabled: Boolean) {
+        firestore.collection("users").document(userId)
+            .update("isAccountEnabled", isEnabled)
+            .addOnSuccessListener {
+                Log.d("FirebaseManager", "Đã cập nhật trạng thái tài khoản của người dùng $userId.")
+            }
+            .addOnFailureListener { e ->
+                Log.w("FirebaseManager", "Lỗi khi cập nhật trạng thái tài khoản.", e)
+            }
+    }
+
+    private val TAG = "FirebaseDatabaseManager"
+
+    /**
+     * Cập nhật trạng thái tài khoản của một người dùng.
+     */
+    suspend fun toggleAccountStatus(uid: String, isEnabled: Boolean) {
+        try {
+            db.collection("users").document(uid).update("isAccountEnabled", isEnabled).await()
+            Log.d(TAG, "Đã cập nhật trạng thái tài khoản cho user $uid thành: $isEnabled")
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khi cập nhật trạng thái tài khoản: ${e.message}", e)
+            throw e
+        }
+    }
+
+    fun getTables(
+        onSuccess: (List<Table>) -> Unit,
+        onError: (Exception) -> Unit
+    ): ListenerRegistration {
+        return db.collection("tables")
+            .addSnapshotListener { snapshots, e ->
+                if (e != null) {
+                    Log.w("FirebaseDatabaseManager", "Table listen failed.", e)
+                    onError(e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshots != null) {
+                    val tables = snapshots.toObjects(Table::class.java)
+                    onSuccess(tables)
+                }
+            }
+    }
+
+    // Thêm hàm này để lấy danh sách khuyến mãi
+    fun getDiscounts(
+        onSuccess: (List<Discount>) -> Unit,
+        onError: (Exception) -> Unit
+    ): ListenerRegistration {
+        return db.collection("discounts")
+            .addSnapshotListener { snapshots, e ->
+                if (e != null) {
+                    Log.w("FirebaseDatabaseManager", "Discount listen failed.", e)
+                    onError(e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshots != null) {
+                    val discounts = snapshots.toObjects(Discount::class.java)
+                    onSuccess(discounts)
+                }
+            }
+    }
+
+    // Thêm hàm này để thêm mã khuyến mãi
+    fun addDiscount(
+        discount: Discount,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("discounts").document(discount.code)
+            .set(discount.toMap())
+            .addOnSuccessListener {
+                Log.d("FirebaseDatabaseManager", "Discount added successfully with code: ${discount.code}")
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                Log.e("FirebaseDatabaseManager", "Error adding discount", e)
+                onError(e)
+            }
+    }
+
+    // Thêm hàm này để thêm bàn mới
+    fun addTable(
+        table: Table,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val newTableRef = db.collection("tables").document()
+        val newTable = table.copy(id = newTableRef.id)
+
+        newTableRef.set(newTable.toMap())
+            .addOnSuccessListener {
+                Log.d("FirebaseDatabaseManager", "Table added successfully with ID: ${newTableRef.id}")
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                Log.e("FirebaseDatabaseManager", "Error adding table", e)
+                onError(e)
+            }
     }
 
     /**
